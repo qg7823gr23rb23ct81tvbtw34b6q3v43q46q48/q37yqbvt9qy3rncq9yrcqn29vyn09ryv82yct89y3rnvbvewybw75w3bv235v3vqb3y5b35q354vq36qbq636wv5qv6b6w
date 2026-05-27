@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosify AI - Customer Support</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --purple-main:#7c3aed;--purple-light:#8b5cf6;--purple-lighter:#a78bfa;
+            --purple-subtle:#ede9fe;--purple-faint:#f5f3ff;--white:#ffffff;
+            --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+            --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;--gray-800:#1f2937;
+            --shadow-sm:0 1px 2px rgba(0,0,0,0.05);--shadow-md:0 4px 12px rgba(0,0,0,0.08);--shadow-lg:0 10px 30px rgba(0,0,0,0.1)
+        }
+        body{font-family:'Inter',sans-serif;background:var(--gray-50);height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column}
+        #loader-screen{position:fixed;inset:0;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .8s,visibility .8s}
+        #loader-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+        .siri-loader{position:relative;width:140px;height:140px}
+        .siri-loader .circle{position:absolute;inset:0;border-radius:50%;border:3px solid transparent;animation:spin 2s linear infinite}
+        .siri-loader .circle:nth-child(1){border-top-color:#7c3aed;border-right-color:#c084fc;filter:drop-shadow(0 0 10px rgba(124,58,237,.5))}
+        .siri-loader .circle:nth-child(2){border-top-color:#e040fb;border-right-color:#f472b6;animation-duration:2.5s;animation-direction:reverse;inset:12px;filter:drop-shadow(0 0 10px rgba(224,64,251,.4))}
+        .siri-loader .circle:nth-child(3){border-top-color:#f97316;border-right-color:#fbbf24;animation-duration:3s;inset:24px;filter:drop-shadow(0 0 10px rgba(249,115,22,.4))}
+        .siri-loader .circle:nth-child(4){border-top-color:#ef4444;border-right-color:#7c3aed;animation-duration:1.8s;animation-direction:reverse;inset:36px;filter:drop-shadow(0 0 10px rgba(239,68,68,.4))}
+        .siri-loader .center-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.6),rgba(192,132,252,.3),transparent);animation:pulse 2s ease-in-out infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7}50%{transform:translate(-50%,-50%) scale(1.6);opacity:1}}
+        .loader-text{margin-top:36px;color:var(--gray-800);font-size:1.2rem;font-weight:700;letter-spacing:1.5px;opacity:0;animation:fadeUp .8s .5s ease forwards}
+        .loader-subtext{margin-top:8px;color:var(--gray-400);font-size:.82rem;opacity:0;animation:fadeUp .8s 1s ease forwards}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        #chat-app{display:flex;flex-direction:column;height:100vh;width:100%;opacity:0;transition:opacity .8s}
+        #chat-app.visible{opacity:1}
+        .chat-header{background:var(--white);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);box-shadow:var(--shadow-sm);flex-shrink:0;z-index:10}
+        .header-left{display:flex;align-items:center;gap:12px}
+        .ai-avatar{width:42px;height:42px;border-radius:50%;background:var(--purple-subtle);display:flex;align-items:center;justify-content:center;position:relative;border:2px solid var(--purple-lighter)}
+        .ai-avatar i{font-size:1.1rem;color:var(--purple-main)}
+        .status-dot{position:absolute;bottom:0;right:0;width:11px;height:11px;border-radius:50%;background:#22c55e;border:2px solid var(--white);animation:sPulse 2.5s ease-in-out infinite}
+        @keyframes sPulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.3)}50%{box-shadow:0 0 0 5px rgba(34,197,94,0)}}
+        .header-info h1{color:var(--gray-800);font-size:1.05rem;font-weight:700}
+        .header-info span{color:var(--gray-400);font-size:.75rem;display:flex;align-items:center;gap:5px}
+        .header-info span i{font-size:.45rem;color:#22c55e}
+        .header-right{display:flex;gap:6px}
+        .header-btn{width:36px;height:36px;border-radius:10px;background:var(--gray-50);border:1px solid var(--gray-200);color:var(--gray-500);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;font-size:.85rem}
+        .header-btn:hover{background:var(--purple-subtle);color:var(--purple-main);border-color:var(--purple-lighter)}
+        .chat-messages{flex:1;overflow-y:auto;padding:24px;background:var(--gray-50);display:flex;flex-direction:column;gap:14px}
+        .chat-messages::-webkit-scrollbar{width:5px}
+        .chat-messages::-webkit-scrollbar-track{background:transparent}
+        .chat-messages::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:3px}
+        .welcome-container{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;animation:fadeUp .6s ease forwards}
+        .welcome-icon{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--purple-main),var(--purple-lighter));display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 8px 30px rgba(124,58,237,.25);animation:wFloat 4s ease-in-out infinite}
+        @keyframes wFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+        .welcome-icon i{font-size:1.8rem;color:#fff}
+        .welcome-container h2{color:var(--gray-800);font-size:1.4rem;font-weight:700;margin-bottom:6px}
+        .welcome-container p{color:var(--gray-500);font-size:.88rem;max-width:420px;line-height:1.5}
+        .quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;justify-content:center}
+        .quick-action-btn{padding:9px 16px;background:var(--white);border:1px solid var(--gray-200);border-radius:22px;color:var(--gray-600);font-size:.8rem;cursor:pointer;transition:all .25s;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:7px;box-shadow:var(--shadow-sm)}
+        .quick-action-btn:hover{background:var(--purple-faint);border-color:var(--purple-lighter);color:var(--purple-main);transform:translateY(-2px);box-shadow:0 4px 15px rgba(124,58,237,.12)}
+        .quick-action-btn i{font-size:.8rem;color:var(--purple-lighter)}
+        .message{display:flex;gap:10px;max-width:78%;animation:msgIn .35s ease forwards;position:relative}
+        @keyframes msgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        .message.user{align-self:flex-end;flex-direction:row-reverse}
+        .message.ai{align-self:flex-start}
+        .msg-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem}
+        .message.ai .msg-avatar{background:var(--purple-subtle);color:var(--purple-main)}
+        .message.user .msg-avatar{background:var(--gray-100);color:var(--gray-500)}
+        .msg-content{display:flex;flex-direction:column;gap:3px}
+        .msg-bubble{padding:12px 16px;border-radius:16px;font-size:.88rem;line-height:1.6;word-wrap:break-word}
+        .message.ai .msg-bubble{background:var(--white);color:var(--gray-700);border:1px solid var(--gray-200);border-top-left-radius:4px;box-shadow:var(--shadow-sm)}
+        .message.user .msg-bubble{background:var(--purple-main);color:#fff;border-top-right-radius:4px;box-shadow:0 2px 10px rgba(124,58,237,.2)}
+        .msg-time{font-size:.68rem;color:var(--gray-400);padding:0 4px}
+        .message.user .msg-time{text-align:right}
+        .msg-bubble.error-bubble{border-color:#fecaca!important;background:#fef2f2!important;color:#991b1b!important}
+        .typing-indicator{display:none;gap:10px;max-width:78%;align-self:flex-start;animation:msgIn .35s ease forwards}
+        .typing-indicator.active{display:flex}
+        .typing-avatar{width:34px;height:34px;border-radius:50%;background:var(--purple-subtle);color:var(--purple-main);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem}
+        .typing-bubble{background:var(--white);border:1px solid var(--gray-200);border-radius:16px;border-top-left-radius:4px;padding:14px 20px;display:flex;align-items:center;gap:4px;box-shadow:var(--shadow-sm)}
+        .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--purple-lighter);animation:bounce 1.4s ease-in-out infinite}
+        .typing-dot:nth-child(2){animation-delay:.2s}
+        .typing-dot:nth-child(3){animation-delay:.4s}
+        @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-7px);opacity:1}}
+        .chat-input-area{padding:14px 24px;background:var(--white);border-top:1px solid var(--gray-200);flex-shrink:0}
+        .input-wrapper{display:flex;align-items:flex-end;gap:10px;max-width:860px;margin:0 auto}
+        .input-container{flex:1;display:flex;align-items:flex-end;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:24px;padding:4px;transition:all .25s}
+        .input-container:focus-within{border-color:var(--purple-lighter);box-shadow:0 0 0 3px rgba(124,58,237,.08)}
+        #message-input{flex:1;background:none;border:none;outline:none;color:var(--gray-800);font-family:'Inter',sans-serif;font-size:.9rem;padding:10px 14px;resize:none;max-height:120px;min-height:22px;line-height:1.5}
+        #message-input::placeholder{color:var(--gray-400)}
+        .send-btn{width:42px;height:42px;border-radius:50%;background:var(--purple-main);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:all .25s;flex-shrink:0}
+        .send-btn:hover{background:var(--purple-light);transform:scale(1.08);box-shadow:0 4px 15px rgba(124,58,237,.3)}
+        .send-btn:active{transform:scale(.95)}
+        .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+        .input-footer{text-align:center;margin-top:6px;font-size:.68rem;color:var(--gray-400)}
+        .input-footer i{margin-right:3px}
+        .msg-bubble code{background:var(--purple-faint);padding:1px 5px;border-radius:4px;font-family:'Courier New',monospace;font-size:.84em;color:var(--purple-main)}
+        .message.user .msg-bubble code{background:rgba(255,255,255,.2);color:#fff}
+        .msg-bubble pre{background:var(--gray-100);padding:10px;border-radius:8px;overflow-x:auto;margin:6px 0;border:1px solid var(--gray-200)}
+        .msg-bubble pre code{background:none;padding:0;color:var(--gray-700)}
+        .msg-bubble strong{color:var(--gray-800);font-weight:600}
+        .message.user .msg-bubble strong{color:#fff}
+        .msg-bubble ul,.msg-bubble ol{margin:6px 0;padding-left:18px}
+        .msg-bubble li{margin:3px 0}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100}
+        .modal-overlay.active{display:flex;animation:fadeIn .25s ease}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .modal-box{background:var(--white);border:1px solid var(--gray-200);border-radius:18px;padding:28px;text-align:center;max-width:340px;width:90%;animation:modalPop .35s ease;box-shadow:var(--shadow-lg)}
+        @keyframes modalPop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+        .modal-box .modal-icon{font-size:2.2rem;color:var(--purple-lighter);margin-bottom:14px}
+        .modal-box h3{color:var(--gray-800);margin-bottom:6px;font-size:1.05rem}
+        .modal-box p{color:var(--gray-500);font-size:.83rem;margin-bottom:22px;line-height:1.5}
+        .modal-actions{display:flex;gap:8px;justify-content:center}
+        .modal-btn{padding:9px 22px;border-radius:10px;border:none;font-family:'Inter',sans-serif;font-size:.83rem;font-weight:500;cursor:pointer;transition:all .25s}
+        .modal-btn.cancel{background:var(--gray-100);color:var(--gray-600)}
+        .modal-btn.cancel:hover{background:var(--gray-200)}
+        .modal-btn.confirm{background:#ef4444;color:#fff}
+        .modal-btn.confirm:hover{background:#dc2626;transform:scale(1.03)}
+        .info-toast{position:fixed;top:70px;right:16px;background:var(--white);border:1px solid var(--gray-200);border-radius:14px;padding:18px;color:var(--gray-700);z-index:50;max-width:270px;box-shadow:var(--shadow-lg);animation:modalPop .3s ease;font-size:.83rem;line-height:1.5}
+        .particle{position:fixed;border-radius:50%;pointer-events:none;z-index:0;opacity:0;animation:pFloat 10s linear infinite}
+        @keyframes pFloat{0%{opacity:0;transform:translateY(100vh) scale(0)}10%{opacity:.2}90%{opacity:.2}100%{opacity:0;transform:translateY(-10vh) scale(1)}}
+        @media(max-width:768px){
+            .chat-header{padding:12px 16px}.header-info h1{font-size:.95rem}.ai-avatar{width:38px;height:38px}
+            .chat-messages{padding:16px}.message{max-width:90%}.chat-input-area{padding:10px 14px}
+            .welcome-container h2{font-size:1.15rem}.quick-actions{flex-direction:column;align-items:center}
+            .siri-loader{width:110px;height:110px}
+        }
+        @media(max-width:480px){
+            .msg-bubble{padding:10px 13px;font-size:.84rem}.msg-avatar{width:28px;height:28px;font-size:.7rem}
+            .header-right{gap:3px}.header-btn{width:32px;height:32px;font-size:.78rem}
+        }
+    </style>
+</head>
+<body>
+    <div id="loader-screen">
+        <div class="siri-loader">
+            <div class="circle"></div><div class="circle"></div><div class="circle"></div><div class="circle"></div>
+            <div class="center-glow"></div>
+        </div>
+        <div class="loader-text">Prosify AI</div>
+        <div class="loader-subtext">Initializing your support assistant...</div>
+    </div>
+    <div id="chat-app">
+        <div class="chat-header">
+            <div class="header-left">
+                <div class="ai-avatar"><i class="fas fa-building"></i><div class="status-dot"></div></div>
+                <div class="header-info">
+                    <h1>Prosify AI</h1>
+                    <span><i class="fas fa-circle"></i> Online &bull; Ready to help</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" id="clear-btn" title="Clear chat"><i class="fas fa-trash-alt"></i></button>
+                <button class="header-btn" id="info-btn" title="Info"><i class="fas fa-info-circle"></i></button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-container" id="welcome-msg">
+                <div class="welcome-icon"><i class="fas fa-building"></i></div>
+                <h2>Welcome to Prosify Homes</h2>
+                <p>Your trusted real estate advisory assistant. Ask me about properties, investment guidance, home loans, or anything about Prosify!</p>
+                <div class="quick-actions">
+                    <button class="quick-action-btn" data-msg="What services does Prosify offer?"><i class="fas fa-concierge-bell"></i> Our services</button>
+                    <button class="quick-action-btn" data-msg="I'm looking to invest in property"><i class="fas fa-chart-line"></i> Property investment</button>
+                    <button class="quick-action-btn" data-msg="Do you help with home loans?"><i class="fas fa-hand-holding-dollar"></i> Home loans</button>
+                    <button class="quick-action-btn" data-msg="Where is Prosify located?"><i class="fas fa-location-dot"></i> Office location</button>
+                    <button class="quick-action-btn" data-msg="How can I contact Prosify?"><i class="fas fa-phone"></i> Contact us</button>
+                    <button class="quick-action-btn" data-msg="Tell me about Prosify"><i class="fas fa-info-circle"></i> About Prosify</button>
+                </div>
+            </div>
+            <div class="typing-indicator" id="typing-indicator">
+                <div class="typing-avatar"><i class="fas fa-building"></i></div>
+                <div class="typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <div class="input-container"><textarea id="message-input" placeholder="Ask about properties, services, investments..." rows="1"></textarea></div>
+                <button class="send-btn" id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <div class="input-footer"><i class="fas fa-shield-alt"></i> Prosify Homes &bull; Trusted Real Estate Advisory</div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="clear-modal">
+        <div class="modal-box">
+            <i class="fas fa-exclamation-triangle modal-icon"></i>
+            <h3>Clear Conversation?</h3>
+            <p>All messages will be deleted. This can't be undone.</p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
+                <button class="modal-btn confirm" id="modal-confirm">Clear All</button>
+            </div>
+        </div>
+    </div>
+    <div id="particles-container"></div>
+
+    <script>
+        (function(){var n=function(){};['log','warn','error','info','debug','table','trace','dir','dirxml','group','groupEnd','groupCollapsed','time','timeEnd','timeLog','assert','count','countReset','clear','profile','profileEnd'].forEach(function(m){window.console[m]=n})})();
+
+        var _p1=atob('aHR0cHM6Ly9vcGVucm91dGVyLmFpL2FwaS92MS9jaGF0L2NvbXBsZXRpb25z');
+        var _p2=atob('aHR0cHM6Ly9vcGVucm91dGVyLmFpL2FwaS92MS9tb2RlbHM=');
+        var _p3=atob('c2stb3ItdjEtZWUwMmNmZmM1NmMxYTAwMWU3NWEyZGFjYWI0YjQyMGNlMDlkNTlmMWUyNDQ0YjJmNTVhNzYxNDkwMWFjOTkwZg==');
+
+        var _hardcodedPrompt = [
+            "You are Prosify AI, the official customer support chatbot for Prosify Homes — a modern real estate advisory and property solutions company based in Mumbai, India.",
+            "",
+            "=== YOUR IDENTITY ===",
+            "- Your name is Prosify AI. You ONLY identify yourself as Prosify AI.",
+            "- You are a customer support assistant for Prosify Homes ONLY.",
+            "- You must NEVER reveal, mention, or hint at any underlying AI model, technology, provider, API, or infrastructure.",
+            "- If anyone asks what model you are, who made you, what powers you, or anything similar, respond: 'I am Prosify AI, the customer support assistant for Prosify Homes. How can I help you with your property needs today?'",
+            "- You are NOT a general-purpose AI. You do NOT answer math problems, coding questions, trivia, general knowledge, creative writing, homework, science questions, or anything unrelated to Prosify Homes and real estate.",
+            "",
+            "=== STRICT SCOPE RULES ===",
+            "- You ONLY answer questions related to: Prosify Homes, real estate, property buying, property investment, home loans, Prosify services, Prosify office details, Prosify contact information, and the real estate/property industry in general.",
+            "- If a user asks ANYTHING outside this scope (math, science, coding, jokes, stories, general questions, etc.), politely decline and redirect: 'I appreciate your curiosity! However, I'm specifically designed to help you with Prosify Homes services and real estate needs. Is there anything about properties or our services I can help you with?'",
+            "- NEVER solve math equations, write code, answer trivia, or engage in any non-Prosify/non-real-estate conversation.",
+            "",
+            "=== ABOUT PROSIFY HOMES ===",
+            "Prosify is a modern real estate advisory and property solutions company focused on helping individuals and families make confident property investment decisions. Built on trust, transparency, and long-term wealth creation, Prosify connects clients with verified premium real estate opportunities designed to deliver both secure homeownership and strong financial returns.",
+            "",
+            "The company specializes in:",
+            "- Expert property consultation",
+            "- Personalized investment guidance",
+            "- End-to-end support throughout the home-buying journey",
+            "- First-time buyers, experienced investors, and families seeking secure residential spaces",
+            "- Carefully selected real estate solutions matching budget, goals, and lifestyle needs",
+            "",
+            "Prosify simplifies property buying by offering:",
+            "- Professional advisory services",
+            "- Financial assistance support",
+            "- Verified project access",
+            "- Transparent transaction handling",
+            "- Reliable information and access to trusted developers",
+            "- Expert support from inquiry to possession",
+            "",
+            "Mission: Transform property ownership into a smart wealth-building opportunity by helping clients secure high-potential residential investments in prime and emerging locations.",
+            "",
+            "=== CORE SERVICES ===",
+            "1. Personalized property consultation",
+            "2. Verified premium project access",
+            "3. Home loan and financial assistance support",
+            "4. Investment planning and wealth-building strategies",
+            "5. Transparent property buying guidance",
+            "6. End-to-end customer support",
+            "7. Assistance with documentation and compliance",
+            "",
+            "=== WHY CHOOSE PROSIFY ===",
+            "- Trusted and transparent advisory services",
+            "- Access to quality real estate developments",
+            "- Customer-focused financial solutions",
+            "- Long-term investment value creation",
+            "- Professional and ethical business practices",
+            "",
+            "=== OFFICE ADDRESS ===",
+            "Prosify Real Estate Advisory",
+            "Udyog Bhavan, Near Canara Bank",
+            "Goddev Phatak Road",
+            "Bhayandar East, Mumbai",
+            "Maharashtra – 401105",
+            "India",
+            "",
+            "=== CONTACT ===",
+            "Phone: 91678-91679",
+            "",
+            "=== RESPONSE GUIDELINES ===",
+            "- Be warm, professional, and helpful",
+            "- Keep responses concise but informative",
+            "- Use emojis sparingly (1-2 per message max) to keep it friendly",
+            "- When a user asks about contact or location, provide the full details",
+            "- Encourage users to reach out via phone for personalized assistance",
+            "- Always prioritize the customer's property needs",
+            "- If unsure about specific property details, recommend they call Prosify directly at 91678-91679 for the most up-to-date information"
+        ].join("\n");
+
+        var _extUrl='https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/aidata.json';
+
+        var _models=[];
+        var _sel=null;
+        var _sys=_hardcodedPrompt;
+        var _hist=[{role:'system',content:_sys}];
+        var _busy=false;
+
+        var $=function(id){return document.getElementById(id)};
+        var ls=$('loader-screen'),ca=$('chat-app'),cm=$('chat-messages'),ti=$('typing-indicator'),wm=$('welcome-msg'),mi=$('message-input'),sb=$('send-btn');
+
+        async function loadExt(){
+            try{
+                var r=await fetch(_extUrl);
+                if(r.ok){
+                    var d=await r.json();
+                    var instr='';
+                    if(typeof d==='string')instr=d;
+                    else if(d.instructions)instr=d.instructions;
+                    else if(d.system)instr=d.system;
+                    else if(d.prompt)instr=d.prompt;
+                    else if(d.content)instr=d.content;
+                    else if(d.data)instr=typeof d.data==='string'?d.data:JSON.stringify(d.data);
+                    if(instr&&instr.length>10){
+                        _sys=_hardcodedPrompt+"\n\n=== ADDITIONAL INSTRUCTIONS ===\n"+instr;
+                        _hist=[{role:'system',content:_sys}];
+                    }
+                }
+            }catch(e){}
+        }
+
+        async function loadModels(){
+            try{
+                var r=await fetch(_p2,{headers:{'Authorization':'Bearer '+_p3}});
+                if(!r.ok)return;
+                var d=await r.json();
+                var free=d.data.filter(function(x){
+                    if(!x.pricing)return false;
+                    return parseFloat(x.pricing.prompt)===0&&parseFloat(x.pricing.completion)===0;
+                });
+                free.sort(function(a,b){return(b.context_length||0)-(a.context_length||0)});
+                _models=free.map(function(x){return x.id});
+                if(_models.length>0)_sel=_models[0];
+            }catch(e){}
+            if(_models.length===0){
+                _models=['openrouter/auto'];
+                _sel=_models[0];
+            }
+        }
+
+        window.addEventListener('load',async function(){
+            await Promise.all([loadExt(),loadModels()]);
+            setTimeout(function(){
+                ls.classList.add('hidden');
+                ca.classList.add('visible');
+                mkParticles();
+            },2500);
+        });
+
+        function mkParticles(){
+            var c=$('particles-container');
+            for(var i=0;i<12;i++){
+                var p=document.createElement('div');
+                p.className='particle';
+                p.style.left=Math.random()*100+'%';
+                p.style.animationDelay=Math.random()*10+'s';
+                p.style.animationDuration=(8+Math.random()*8)+'s';
+                p.style.background='rgba(124,58,237,'+(0.06+Math.random()*0.1)+')';
+                var s=(2+Math.random()*4)+'px';
+                p.style.width=s;p.style.height=s;
+                c.appendChild(p);
+            }
+        }
+
+        mi.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'});
+        mi.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend()}});
+
+        function gTime(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+        function sEnd(){requestAnimationFrame(function(){cm.scrollTop=cm.scrollHeight})}
+
+        function fMd(t){
+            return t
+                .replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>')
+                .replace(/`([^`]+)`/g,'<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+                .replace(/\n/g,'<br>');
+        }
+
+        function aMsg(content,isUser,isErr){
+            if(wm)wm.style.display='none';
+            var d=document.createElement('div');
+            d.className='message '+(isUser?'user':'ai');
+            var ic=isUser?'fa-user':'fa-building';
+            var f=isUser?content:fMd(content);
+            var ec=isErr?' error-bubble':'';
+            d.innerHTML='<div class="msg-avatar"><i class="fas '+ic+'"></i></div><div class="msg-content"><div class="msg-bubble'+ec+'">'+f+'</div><span class="msg-time">'+gTime()+'</span></div>';
+            cm.insertBefore(d,ti);
+            sEnd();
+        }
+
+        function sT(){ti.classList.add('active');sEnd()}
+        function hT(){ti.classList.remove('active')}
+
+        async function apiCall(msgs,idx){
+            if(!_models.length)throw new Error('x');
+            if(idx>=_models.length)throw new Error('x');
+            var model=_models[idx];
+            try{
+                var r=await fetch(_p1,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+_p3},
+                    body:JSON.stringify({model:model,messages:msgs,max_tokens:1024,temperature:0.7})
+                });
+                if(!r.ok){
+                    if(idx<_models.length-1)return apiCall(msgs,idx+1);
+                    throw new Error('x');
+                }
+                var d=await r.json();
+                if(!d.choices||!d.choices[0]||!d.choices[0].message||!d.choices[0].message.content){
+                    if(idx<_models.length-1)return apiCall(msgs,idx+1);
+                    throw new Error('x');
+                }
+                var reply=d.choices[0].message.content;
+                reply=reply.replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
+                _sel=model;
+                return reply;
+            }catch(err){
+                if(idx<_models.length-1)return apiCall(msgs,idx+1);
+                throw err;
+            }
+        }
+
+        async function doSend(){
+            if(_busy)return;
+            var text=mi.value.trim();
+            if(!text)return;
+            _busy=true;
+            mi.value='';mi.style.height='auto';
+            sb.disabled=true;
+            aMsg(text,true);
+            _hist.push({role:'user',content:text});
+            sT();
+            try{
+                var si=_sel?_models.indexOf(_sel):0;
+                var reply=await apiCall(_hist,Math.max(0,si));
+                _hist.push({role:'assistant',content:reply});
+                hT();
+                aMsg(reply,false);
+            }catch(e){
+                hT();
+                aMsg('<i class="fas fa-exclamation-circle" style="margin-right:6px;color:#ef4444;"></i> Sorry, I\'m having trouble connecting right now. Please try again shortly or call us directly at <strong>91678-91679</strong>.',false,true);
+            }
+            _busy=false;
+            sb.disabled=false;
+            mi.focus();
+        }
+
+        document.querySelectorAll('.quick-action-btn').forEach(function(b){
+            b.addEventListener('click',function(){mi.value=b.dataset.msg;doSend()});
+        });
+
+        sb.addEventListener('click',doSend);
+
+        var clm=$('clear-modal');
+        $('clear-btn').addEventListener('click',function(){clm.classList.add('active')});
+        $('modal-cancel').addEventListener('click',function(){clm.classList.remove('active')});
+        $('modal-confirm').addEventListener('click',function(){
+            clm.classList.remove('active');
+            cm.querySelectorAll('.message').forEach(function(m){m.remove()});
+            if(wm)wm.style.display='flex';
+            _hist=[{role:'system',content:_sys}];
+        });
+        clm.addEventListener('click',function(e){if(e.target===clm)clm.classList.remove('active')});
+
+        $('info-btn').addEventListener('click',function(){
+            var ex=document.querySelector('.info-toast');
+            if(ex){ex.remove();return}
+            var t=document.createElement('div');
+            t.className='info-toast';
+            t.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="fas fa-building" style="color:var(--purple-main);"></i><strong style="color:var(--gray-800);">Prosify Homes</strong></div><p style="color:var(--gray-500);font-size:.78rem;margin:0 0 4px;">Real Estate Advisory & Property Solutions</p><p style="color:var(--gray-400);font-size:.72rem;margin:0 0 4px;">Udyog Bhavan, Bhayandar East, Mumbai</p><p style="color:var(--gray-400);font-size:.72rem;margin:0 0 10px;"><i class="fas fa-phone" style="font-size:.65rem;margin-right:4px;"></i>91678-91679</p><button style="background:var(--purple-subtle);border:none;color:var(--purple-main);padding:5px 14px;border-radius:8px;cursor:pointer;font-family:Inter,sans-serif;font-size:.78rem;" onclick="this.parentElement.remove()">Got it</button>';
+            document.body.appendChild(t);
+            setTimeout(function(){if(t.parentElement)t.remove()},6000);
+        });
+    </script>
+</body>
+</html>
