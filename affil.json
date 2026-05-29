@@ -8,9 +8,11 @@
     "status": "accepted",
     "affiliateId": "COF-64333",
     "views": 0,
-    "userAttention": 0,
+    "userAttention": 1,
     "viewedIPs": [],
-    "inquiredIPs": [],
+    "inquiredIPs": [
+      "203.189.185.133"
+    ],
     "submittedAt": "2026-05-29T19:18:05.323Z"
   }
 ]
