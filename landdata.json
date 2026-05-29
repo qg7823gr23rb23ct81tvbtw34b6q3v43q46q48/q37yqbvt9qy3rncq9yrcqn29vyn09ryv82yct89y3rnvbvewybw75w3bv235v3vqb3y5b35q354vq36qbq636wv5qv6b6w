@@ -34,36 +34,5 @@
       }
     ],
     "publish_status": "Published"
-  },
-  {
-    "project_id": "proj_uprera_1780076944243",
-    "title": "UPRERA",
-    "rera_id": "aweff",
-    "bhk": [
-      "Studio"
-    ],
-    "price": 32525243,
-    "price_label": "q3545",
-    "header_image": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_uprera_1780076944243/proj_uprera_1780076944243_banner.jpg",
-    "images": [
-      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_uprera_1780076944243/proj_uprera_1780076944243_gallery_1.jpg",
-      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_uprera_1780076944243/proj_uprera_1780076944243_gallery_2.jpg",
-      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_uprera_1780076944243/proj_uprera_1780076944243_gallery_3.jpg"
-    ],
-    "location": {
-      "state": "345",
-      "city": "v",
-      "locality": "avsg",
-      "latitude": 26.8467,
-      "longitude": 80.9462
-    },
-    "brochure": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_uprera_1780076944243/proj_uprera_1780076944243_brochure.pdf",
-    "amenities": [
-      {
-        "name": "Star",
-        "icon": "fa-solid fa-star"
-      }
-    ],
-    "publish_status": "Published"
   }
 ]
