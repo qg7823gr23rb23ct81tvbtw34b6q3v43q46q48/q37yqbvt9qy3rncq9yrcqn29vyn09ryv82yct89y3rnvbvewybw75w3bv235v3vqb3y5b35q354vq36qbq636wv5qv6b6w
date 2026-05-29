@@ -1,1 +1,33 @@
-[]
+[
+  {
+    "project_id": "proj_emerald_gardens_1780039655656",
+    "title": "Emerald Gardens",
+    "rera_id": "UPRERAPRJ12345",
+    "bhk": [
+      "1 BHK",
+      "Studio"
+    ],
+    "price": 4500000,
+    "price_label": "4500000",
+    "header_image": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780039655656/proj_emerald_gardens_1780039655656_banner.jpg",
+    "images": [
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780039655656/proj_emerald_gardens_1780039655656_gallery_1.jpg",
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780039655656/proj_emerald_gardens_1780039655656_gallery_2.jpg"
+    ],
+    "location": {
+      "state": "Uttar",
+      "city": "Kuckloe",
+      "locality": "GubadA",
+      "latitude": 28.613895,
+      "longitude": 77.209006
+    },
+    "brochure": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780039655656/proj_emerald_gardens_1780039655656_brochure.pdf",
+    "amenities": [
+      {
+        "name": "Swimming Pool",
+        "icon": "fa-solid fa-person-swimming"
+      }
+    ],
+    "publish_status": "Published"
+  }
+]
