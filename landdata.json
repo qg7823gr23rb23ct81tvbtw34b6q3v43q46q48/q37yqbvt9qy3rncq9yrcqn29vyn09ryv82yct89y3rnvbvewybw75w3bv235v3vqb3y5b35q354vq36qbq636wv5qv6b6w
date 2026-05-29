@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "project_id": "proj_emerald_gardens_1780043823060",
+    "title": "Emerald Gardens",
+    "rera_id": "UPRERA",
+    "bhk": [
+      "1 BHK",
+      "2 BHK",
+      "3 BHK"
+    ],
+    "price": 450000,
+    "price_label": "Starting at 45$ Lakhs",
+    "header_image": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780043823060/proj_emerald_gardens_1780043823060_banner.jpg",
+    "images": [
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780043823060/proj_emerald_gardens_1780043823060_gallery_1.jpg",
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780043823060/proj_emerald_gardens_1780043823060_gallery_2.jpg"
+    ],
+    "location": {
+      "state": "Yr",
+      "city": "rr",
+      "locality": "rrt",
+      "latitude": 24.873034,
+      "longitude": 67.365058
+    },
+    "brochure": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780043823060/proj_emerald_gardens_1780043823060_brochure.pdf",
+    "amenities": [
+      {
+        "name": "Swimming Pool",
+        "icon": "fa-solid fa-person-swimming"
+      },
+      {
+        "name": "Gymnasium",
+        "icon": "fa-solid fa-dumbbell"
+      }
+    ],
+    "publish_status": "Published"
+  }
+]
