@@ -1,1 +1,34 @@
-[]
+[
+  {
+    "project_id": "proj_emerald_gardens_1780081097604",
+    "title": "Emerald Gardens",
+    "rera_id": "UPRERA",
+    "category": "Land",
+    "bhk": [
+      "1 BHK"
+    ],
+    "price": 45900000,
+    "price_label": "5234",
+    "header_image": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780081097604/proj_emerald_gardens_1780081097604_banner.jpg",
+    "images": [
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780081097604/proj_emerald_gardens_1780081097604_gallery_1.jpg",
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780081097604/proj_emerald_gardens_1780081097604_gallery_2.jpg",
+      "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780081097604/proj_emerald_gardens_1780081097604_gallery_3.jpg"
+    ],
+    "location": {
+      "state": "Uttar Pradesh",
+      "city": "Lucknow",
+      "locality": "Dubagga",
+      "latitude": 26.862462,
+      "longitude": 80.907784
+    },
+    "brochure": "https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/media/proj_emerald_gardens_1780081097604/proj_emerald_gardens_1780081097604_brochure.pdf",
+    "amenities": [
+      {
+        "name": "Star",
+        "icon": "fa-solid fa-star"
+      }
+    ],
+    "publish_status": "Published"
+  }
+]
