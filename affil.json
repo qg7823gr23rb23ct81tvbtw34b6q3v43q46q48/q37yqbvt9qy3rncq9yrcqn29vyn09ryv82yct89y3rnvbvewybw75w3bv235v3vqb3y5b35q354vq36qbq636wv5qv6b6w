@@ -5,11 +5,12 @@
     "email": "aveeshaninsara14@gmail.com",
     "phone": "9167891679",
     "address": "",
-    "status": "pending",
+    "status": "declined",
     "affiliateId": "FVS-31296",
     "views": 0,
     "userAttention": 0,
-    "submittedAt": "2026-05-29T16:26:19.190Z"
+    "submittedAt": "2026-05-29T16:26:19.190Z",
+    "reason": "dfg"
   },
   {
     "firstName": "Aveesha",
