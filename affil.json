@@ -1,1 +1,16 @@
-
+[
+  {
+    "firstName": "John L",
+    "lastName": "Logie",
+    "email": "aaww@h.l",
+    "phone": "7890789099",
+    "address": "",
+    "status": "pending",
+    "affiliateId": "PNY-20779",
+    "views": 0,
+    "userAttention": 0,
+    "viewedIPs": [],
+    "inquiredIPs": [],
+    "submittedAt": "2026-05-29T22:12:22.965Z"
+  }
+]
