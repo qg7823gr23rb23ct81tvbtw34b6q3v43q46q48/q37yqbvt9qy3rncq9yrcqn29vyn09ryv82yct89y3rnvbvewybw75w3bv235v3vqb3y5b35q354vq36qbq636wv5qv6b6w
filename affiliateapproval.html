@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Affiliate Acceptance Console</title>
+
+    <!-- Tailwind CSS (Material 3 Theme Palette) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6750A4',
+                        onPrimary: '#FFFFFF',
+                        primaryContainer: '#EADDFF',
+                        onPrimaryContainer: '#21005D',
+                        surface: '#FEF7FF',
+                        surfaceVariant: '#E7E0EC',
+                        onSurface: '#1D1B20',
+                        onSurfaceVariant: '#49454F',
+                        outline: '#79747E',
+                        secondaryContainer: '#E8DEF8',
+                        error: '#B3261E',
+                        success: '#2E7D32',
+                        successContainer: '#C8E6C9',
+                        warning: '#E65100',
+                        warningContainer: '#FFE0B2'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <!-- Font Awesome Free Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #FEF7FF;
+        }
+        .admin-locked {
+            overflow: hidden;
+            height: 100vh;
+        }
+    </style>
+</head> 
+
+<body class="admin-locked text-onSurface">
+
+<!-- Password Verification Gate -->
+<div id="passwordGate" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-surface px-4 text-center">
+    <div class="max-w-md w-full bg-surfaceVariant p-8 rounded-[28px] shadow-sm border border-outline/10">
+        <span class="material-symbols-outlined text-primary text-5xl mb-4">admin_panel_settings</span>
+        <h2 class="text-2xl font-semibold mb-2 text-onSurface">Admin Verification</h2>
+        <p class="text-sm text-onSurfaceVariant mb-6">Enter admin password to manage affiliate applications.</p>
+        <form id="gateForm" onsubmit="verifyPassword(event)">
+            <div class="relative mb-4">
+                <input type="password" id="adminPassword" placeholder="Enter Password" required
+                    class="w-full px-4 py-3 bg-surface border border-outline rounded-lg focus:outline-none focus:border-primary text-onSurface">
+            </div>
+            <button type="submit" 
+                class="w-full bg-primary hover:bg-opacity-90 text-onPrimary font-medium py-3 rounded-full transition duration-200 shadow">
+                Verify & Unlock
+            </button>
+            <p id="gateError" class="text-error text-xs mt-3 hidden">Incorrect credentials. Please try again.</p>
+        </form>
+    </div>
+</div>
+
+<!-- Main Workspace Dashboard -->
+<div id="mainDashboard" class="hidden min-h-screen flex flex-col">
+    <!-- Sticky Top App Bar -->
+    <header class="bg-surface border-b border-outline/10 sticky top-0 z-40 px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-3xl">handshake</span>
+            <h1 class="text-xl font-bold tracking-tight text-primary">Affiliate Acceptance Console</h1>
+        </div>
+        
+        <!-- Active Application Count Monitor -->
+        <div id="storageMetrics" class="text-xs font-semibold px-4 py-2 rounded-full bg-secondaryContainer text-primary flex items-center gap-1.5 self-start md:self-auto">
+            <span class="material-symbols-outlined text-sm">group</span>
+            <span id="metricsText">Loading Application Metrics...</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 self-end md:self-auto">
+            <!-- Active Token Validation Indicator Badge -->
+            <span id="tokenStatusBadge" class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-error/10 text-error flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-error"></span> Verification Required
+            </span>
+            <button onclick="promptForNewToken()" class="text-xs text-primary hover:bg-primary/5 px-3 py-2 rounded-full border border-primary/20 transition">
+                Configure Git Token
+            </button>
+        </div>
+    </header>
+
+    <!-- Filters Section -->
+    <section class="max-w-7xl w-full mx-auto px-4 md:px-6 pt-6">
+        <div class="flex flex-wrap gap-2 border-b border-outline/10 pb-3" id="filterTabs">
+            <button onclick="filterApplications('all', this)" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold bg-primaryContainer text-onPrimaryContainer shadow-sm transition">All Applications (<span id="countAll">0</span>)</button>
+            <button onclick="filterApplications('pending', this)" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold hover:bg-primaryContainer/30 transition">Pending Review (<span id="countPending">0</span>)</button>
+            <button onclick="filterApplications('accepted', this)" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold hover:bg-primaryContainer/30 transition">Accepted Agents (<span id="countAccepted">0</span>)</button>
+            <button onclick="filterApplications('declined', this)" class="filter-tab px-4 py-2 rounded-full text-xs font-semibold hover:bg-primaryContainer/30 transition">Declined (<span id="countDeclined">0</span>)</button>
+        </div>
+    </section>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 md:px-6 py-6">
+        <!-- Loading Indicator -->
+        <div id="loader" class="flex flex-col items-center justify-center py-20">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
+            <p class="text-onSurfaceVariant text-sm">Fetching affiliate applications from GitHub secure directory...</p>
+        </div>
+
+        <!-- Empty State Layout -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-24 text-center">
+            <div class="bg-primaryContainer p-6 rounded-full text-onPrimaryContainer mb-6">
+                <span class="material-symbols-outlined text-5xl">group_off</span>
+            </div>
+            <h3 class="text-2xl font-bold mb-2 text-center">No Applications Found</h3>
+            <p class="text-onSurfaceVariant max-w-sm mb-4 text-center mx-auto">There are currently no affiliate applications matching the selected filter.</p>
+        </div>
+
+        <!-- Responsive Card Grid -->
+        <div id="applicationsGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Dynamically populated card listings -->
+        </div>
+    </main>
+</div>
+
+<!-- Detailed Application Dialog Modal -->
+<div id="detailModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-surface w-full max-w-xl rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-surfaceVariant border-b border-outline/10 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-bold text-onSurface">Application Details</h3>
+                <p class="text-xs text-onSurfaceVariant">Form details submitted by the applicant partner.</p>
+            </div>
+            <button onclick="closeDetailsModal()" class="text-onSurfaceVariant hover:text-onSurface flex items-center justify-center p-1 rounded-full hover:bg-outline/10 transition">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <!-- Modal Body Content -->
+        <div class="flex-grow overflow-y-auto p-6 space-y-6">
+            
+            <!-- Dynamic Status Badge Indicator -->
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-onSurfaceVariant uppercase tracking-wider">Current Status</span>
+                <span id="modalStatusBadge" class="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Pending</span>
+            </div>
+
+            <!-- Profile Info Fields -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">First Name</label>
+                    <p id="modalFirstName" class="text-sm font-semibold text-onSurface mt-0.5">-</p>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Last Name</label>
+                    <p id="modalLastName" class="text-sm font-semibold text-onSurface mt-0.5">-</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Email Address</label>
+                <p id="modalEmail" class="text-sm font-semibold text-onSurface mt-0.5">-</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">WhatsApp Contact</label>
+                    <a id="modalPhoneLink" href="#" target="_blank" class="text-sm font-bold text-primary hover:underline flex items-center gap-1.5 mt-0.5">
+                        <i class="fab fa-whatsapp text-success"></i> <span id="modalPhone">-</span>
+                    </a>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Generated Partner ID</label>
+                    <p id="modalAffiliateId" class="text-sm font-bold text-primary font-mono mt-0.5">-</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Residential Address</label>
+                <p id="modalAddress" class="text-sm text-onSurface font-medium mt-0.5">-</p>
+            </div>
+
+            <!-- Referral Stats (Views & Attention) -->
+            <div class="border-t border-outline/10 pt-4 grid grid-cols-2 gap-4">
+                <div class="bg-surfaceVariant/40 p-3 rounded-2xl border border-outline/5 text-center">
+                    <span class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Customer Views</span>
+                    <span id="modalViewsCount" class="text-lg font-black text-onSurface block mt-1">0</span>
+                </div>
+                <div class="bg-surfaceVariant/40 p-3 rounded-2xl border border-outline/5 text-center">
+                    <span class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">User Attention</span>
+                    <span id="modalAttentionCount" class="text-lg font-black text-primary block mt-1">0</span>
+                </div>
+            </div>
+
+            <!-- Decline Reason (Conditionally Displayed) -->
+            <div id="modalDeclineReasonBlock" class="hidden bg-error/5 border border-error/20 p-4 rounded-2xl">
+                <label class="block text-[10px] font-bold text-error uppercase tracking-wide">Reason for Decline</label>
+                <p id="modalDeclineReasonText" class="text-xs text-error font-medium mt-1 leading-relaxed">-</p>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-onSurfaceVariant uppercase tracking-wide">Date Registered</label>
+                <p id="modalSubmittedAt" class="text-xs text-onSurfaceVariant font-medium mt-0.5">-</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="px-6 py-4 bg-surfaceVariant border-t border-outline/10 flex items-center justify-between gap-3">
+            <button type="button" onclick="closeDetailsModal()" class="text-onSurfaceVariant font-semibold py-2.5 px-5 rounded-full hover:bg-outline/5 transition text-sm">
+                Close
+            </button>
+            <div class="flex gap-2" id="modalActionButtons">
+                <!-- Accept and Decline buttons are rendered dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loader Commit/Process Spinner Dialog Overlay -->
+<div id="processingModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+    <div class="bg-surface p-8 rounded-[28px] shadow-xl text-center max-w-sm w-full">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+        <h3 class="text-lg font-bold mb-1">Processing Changes</h3>
+        <p class="text-xs text-onSurfaceVariant">Pushing status synchronization back to GitHub index...</p>
+    </div>
+</div>
+
+<script>
+    const AUTH_HASH = "Hello4home@12345";
+    
+    // Base64 configured backup Token
+    const DEFAULT_PAT_B64 = "Z2l0aHViX3BhdF8xMUNFVlU3VlEwS212R2NJcUljVElWX3lUY3RJTlRzaVk4ZTNIVjBQb2RVdnJiSjRaWjlIMG9HVzVCMFpzUVo4cTdNWU5HWUsyUTJTcWdTb2Ex";
+    
+    // Repository Coordinates
+    const REPO_OWNER = "qg7823gr23rb23ct81tvbtw34b6q3v43q46q48";
+    const REPO_NAME = "q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w";
+    const FILE_NAME = "affil.json";
+    const BRANCH = "main";
+
+    // Global Registry Properties
+    let affiliateList = [];
+    let fileSha = null;
+    let selectedFilter = 'all';
+    let activeIndexRef = null;
+
+    // Fetch Token
+    function getActiveToken() {
+        return localStorage.getItem('custom_github_pat') || atob(DEFAULT_PAT_B64);
+    }
+
+    // Input fresh personal token
+    function promptForNewToken() {
+        const freshToken = prompt("Enter a valid GitHub Personal Access Token (PAT):", getActiveToken());
+        if (freshToken) {
+            localStorage.setItem('custom_github_pat', freshToken.trim());
+            alert("GitHub Token updated successfully. Reloading...");
+            window.location.reload();
+        }
+    }
+
+    // Update real-time status of configured token
+    function updateTokenStatus() {
+        const token = getActiveToken();
+        const badge = document.getElementById('tokenStatusBadge');
+        if (!badge) return;
+        
+        if (token && token !== atob(DEFAULT_PAT_B64)) {
+            badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1";
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> Token Configured`;
+        } else {
+            badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700 flex items-center gap-1";
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Default Credentials`;
+        }
+    }
+
+    // Unlock Verification Gate
+    function verifyPassword(e) {
+        e.preventDefault();
+        const input = document.getElementById('adminPassword').value;
+        if (input === AUTH_HASH) {
+            document.getElementById('passwordGate').classList.add('hidden');
+            document.body.classList.remove('admin-locked');
+            document.getElementById('mainDashboard').classList.remove('hidden');
+            updateTokenStatus();
+            initApp();
+        } else {
+            const err = document.getElementById('gateError');
+            err.classList.remove('hidden');
+            setTimeout(() => err.classList.add('hidden'), 3000);
+        }
+    }
+
+    // Safe UTF-8 Base64 Decoding Helper
+    function decodeBase64UTF8(str) {
+        return decodeURIComponent(atob(str.replace(/\s/g, '')).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    }
+
+    // Load affiliate application registry
+    async function initApp() {
+        try {
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('applicationsGrid').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_NAME}?t=${cacheBuster}`;
+
+            const res = await fetch(url, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.status === 401) {
+                handleAuthFailure();
+                return;
+            }
+
+            if (res.ok) {
+                const payload = await res.json();
+                fileSha = payload.sha;
+                const rawText = decodeBase64UTF8(payload.content);
+                const items = JSON.parse(rawText);
+                affiliateList = Array.isArray(items) ? items : [];
+            } else {
+                console.warn("Target file not initialized. Starting with a blank registry.");
+                affiliateList = [];
+                fileSha = null;
+            }
+
+            updateMetrics();
+            renderApplications();
+
+        } catch (e) {
+            console.error("Critical directory read failure: ", e);
+            alert("Error: Unable to synchronize partner lists from GitHub. Check token configurations.");
+        } finally {
+            document.getElementById('loader').classList.add('hidden');
+        }
+    }
+
+    // Update real-time storage metrics
+    function updateMetrics() {
+        const total = affiliateList.length;
+        const pending = affiliateList.filter(a => a.status === 'pending').length;
+        const accepted = affiliateList.filter(a => a.status === 'accepted').length;
+        const declined = affiliateList.filter(a => a.status === 'declined').length;
+
+        document.getElementById('metricsText').textContent = `Syncing: ${total} ${total === 1 ? 'Application' : 'Applications'} Total`;
+        document.getElementById('countAll').textContent = total;
+        document.getElementById('countPending').textContent = pending;
+        document.getElementById('countAccepted').textContent = accepted;
+        document.getElementById('countDeclined').textContent = declined;
+    }
+
+    // Filter layout lists
+    function filterApplications(category, element) {
+        selectedFilter = category;
+        
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.className = "filter-tab px-4 py-2 rounded-full text-xs font-semibold hover:bg-primaryContainer/30 transition";
+        });
+        
+        if (element) {
+            element.className = "filter-tab px-4 py-2 rounded-full text-xs font-semibold bg-primaryContainer text-onPrimaryContainer shadow-sm transition";
+        }
+        
+        renderApplications();
+    }
+
+    // Dynamic color coding badges by registration status
+    function getStatusBadgeClass(status) {
+        const s = (status || "").toLowerCase().trim();
+        if (s === 'accepted') {
+            return "bg-successContainer text-success border border-success/10";
+        } else if (s === 'declined') {
+            return "bg-error/10 text-error border border-error/10";
+        } else {
+            return "bg-warningContainer text-warning border border-warning/10";
+        }
+    }
+
+    // Render affiliate applications on dashboard
+    function renderApplications() {
+        const grid = document.getElementById('applicationsGrid');
+        const empty = document.getElementById('emptyState');
+
+        const filteredList = selectedFilter === 'all' 
+            ? affiliateList 
+            : affiliateList.filter(a => a.status === selectedFilter);
+
+        if (filteredList.length === 0) {
+            empty.classList.remove('hidden');
+            grid.classList.add('hidden');
+            return;
+        }
+
+        empty.classList.add('hidden');
+        grid.classList.remove('hidden');
+
+        // Capture absolute index position of elements inside the parent array to avoid index mismatch
+        grid.innerHTML = filteredList.map(item => {
+            const indexInMaster = affiliateList.indexOf(item);
+            return `
+                <div onclick="openDetails(${indexInMaster})" class="bg-surfaceVariant/60 rounded-[24px] p-6 border border-outline/10 flex flex-col justify-between transition hover:shadow-sm cursor-pointer hover:bg-surfaceVariant/95">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-primary font-mono tracking-wider">${item.affiliateId || 'N/A'}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${getStatusBadgeClass(item.status)}">${item.status}</span>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-onSurface leading-tight">${item.firstName} ${item.lastName}</h4>
+                            <p class="text-xs text-onSurfaceVariant font-medium mt-1">${item.email}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <i class="fab fa-whatsapp text-success text-sm"></i>
+                            <span class="text-xs font-bold text-success">+91 ${item.phone}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-5 pt-4 border-t border-outline/5 flex items-center justify-between text-xs text-onSurfaceVariant">
+                        <span>Views: <strong>${item.views || 0}</strong></span>
+                        <span>Attention: <strong>${item.userAttention || 0}</strong></span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Open detailed card dialog
+    function openDetails(index) {
+        activeIndexRef = index;
+        const user = affiliateList[index];
+        if (!user) return;
+
+        // Populate text details
+        document.getElementById('modalFirstName').textContent = user.firstName || '-';
+        document.getElementById('modalLastName').textContent = user.lastName || '-';
+        document.getElementById('modalEmail').textContent = user.email || '-';
+        document.getElementById('modalPhone').textContent = user.phone || '-';
+        document.getElementById('modalPhoneLink').href = `https://wa.me/91${user.phone}`;
+        document.getElementById('modalAffiliateId').textContent = user.affiliateId || 'NOT ASSIGNED';
+        document.getElementById('modalAddress').textContent = user.address || 'Address details not provided';
+        document.getElementById('modalViewsCount').textContent = user.views || 0;
+        document.getElementById('modalAttentionCount').textContent = user.userAttention || 0;
+        
+        // Date formatting safely
+        if (user.submittedAt) {
+            try {
+                document.getElementById('modalSubmittedAt').textContent = new Date(user.submittedAt).toLocaleString();
+            } catch (e) {
+                document.getElementById('modalSubmittedAt').textContent = user.submittedAt;
+            }
+        } else {
+            document.getElementById('modalSubmittedAt').textContent = '-';
+        }
+
+        // Status Badge Styling
+        const badge = document.getElementById('modalStatusBadge');
+        badge.textContent = user.status;
+        badge.className = `px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusBadgeClass(user.status)}`;
+
+        // Handle decline block display
+        const declineBlock = document.getElementById('modalDeclineReasonBlock');
+        if (user.status === 'declined' && user.reason) {
+            declineBlock.classList.remove('hidden');
+            document.getElementById('modalDeclineReasonText').textContent = user.reason;
+        } else {
+            declineBlock.classList.add('hidden');
+        }
+
+        // Display conditional actionable controls based on application lifecycle status
+        const actionsContainer = document.getElementById('modalActionButtons');
+        if (user.status === 'pending') {
+            actionsContainer.innerHTML = `
+                <button type="button" onclick="declineApplication()" class="text-error font-semibold hover:bg-error/5 border border-error/20 py-2.5 px-5 rounded-full transition text-sm">
+                    Decline
+                </button>
+                <button type="button" onclick="acceptApplication()" class="bg-success text-onPrimary font-semibold py-2.5 px-6 rounded-full hover:bg-opacity-95 transition shadow-sm text-sm">
+                    Accept Partner
+                </button>
+            `;
+        } else {
+            // Keep status revert support available if the entry requires review again
+            actionsContainer.innerHTML = `
+                <button type="button" onclick="revertToPending()" class="text-primary font-semibold border border-primary/20 hover:bg-primary/5 py-2.5 px-5 rounded-full transition text-sm">
+                    Revert to Pending
+                </button>
+            `;
+        }
+
+        const modal = document.getElementById('detailModal');
+        modal.classList.remove('hidden');
+    }
+
+    function closeDetailsModal() {
+        document.getElementById('detailModal').classList.add('hidden');
+        activeIndexRef = null;
+    }
+
+    // Revert status support
+    async function revertToPending() {
+        if (!confirm("Are you sure you want to revert this application status back to Pending Review?")) return;
+        
+        document.getElementById('processingModal').classList.remove('hidden');
+        affiliateList[activeIndexRef].status = 'pending';
+        // Clear any previous decline reasons
+        delete affiliateList[activeIndexRef].reason;
+
+        const success = await commitChangesToGitHub();
+        document.getElementById('processingModal').classList.add('hidden');
+
+        if (success) {
+            alert("Application reverted to Pending status.");
+            closeDetailsModal();
+            initApp();
+        } else {
+            alert("Error: Unable to synchronize status change on repository. Refresh and try again.");
+        }
+    }
+
+    // Accept application routine
+    async function acceptApplication() {
+        const user = affiliateList[activeIndexRef];
+        if (!user) return;
+
+        if (!confirm(`Are you sure you want to approve ${user.firstName} ${user.lastName} as an authorized partner?`)) return;
+
+        document.getElementById('processingModal').classList.remove('hidden');
+        
+        // Guarantee status accepts has views/attention initialized [REFERRAL METRICS INITIALIZATION]
+        user.status = 'accepted';
+        if (typeof user.views === 'undefined') user.views = 0;
+        if (typeof user.userAttention === 'undefined') user.userAttention = 0;
+
+        const success = await commitChangesToGitHub();
+        document.getElementById('processingModal').classList.add('hidden');
+
+        if (success) {
+            alert(`Application for ${user.firstName} is approved!`);
+            closeDetailsModal();
+            initApp();
+        } else {
+            alert("Error: Status synchronization failed.");
+        }
+    }
+
+    // Decline application prompt
+    async function declineApplication() {
+        const user = affiliateList[activeIndexRef];
+        if (!user) return;
+
+        const reason = prompt(`Provide a brief decline reason for ${user.firstName} ${user.lastName} (This reason will be visible on their panel):`);
+        if (reason === null) return; // Cancelled prompt action
+
+        const parsedReason = reason.trim() || "Criteria or details verification mismatch";
+
+        document.getElementById('processingModal').classList.remove('hidden');
+        
+        user.status = 'declined';
+        user.reason = parsedReason;
+
+        const success = await commitChangesToGitHub();
+        document.getElementById('processingModal').classList.add('hidden');
+
+        if (success) {
+            alert(`Application for ${user.firstName} was declined.`);
+            closeDetailsModal();
+            initApp();
+        } else {
+            alert("Error: Status synchronization failed.");
+        }
+    }
+
+    // Save JSON structures directly back to GitHub index
+    async function commitChangesToGitHub() {
+        const token = getActiveToken();
+        try {
+            const jsonString = JSON.stringify(affiliateList, null, 2);
+            const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
+            
+            // Re-fetch freshes absolute file SHA reference right before commit to prevent 409 conflicts
+            const freshestSha = await getLatestFileSha();
+
+            const payload = {
+                message: "Sync affiliate application list status",
+                content: base64Content,
+                branch: BRANCH
+            };
+
+            if (freshestSha) {
+                payload.sha = freshestSha;
+            }
+
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_NAME}`;
+            const res = await fetch(url, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.status === 401) {
+                handleAuthFailure();
+                return false;
+            }
+
+            return res.ok;
+
+        } catch (e) {
+            console.error("Critical Git Sync Operation Failed: ", e);
+            return false;
+        }
+    }
+
+    // Fetch freshest absolute file SHA from GitHub API
+    async function getLatestFileSha() {
+        const token = getActiveToken();
+        const cacheBuster = Date.now();
+        const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_NAME}?t=${cacheBuster}`;
+        try {
+            const res = await fetch(url, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return data.sha;
+            }
+        } catch (e) {
+            console.warn("Could not retrieve latest file SHA index.", e);
+        }
+        return null;
+    }
+
+    // Handle authentication failures gracefully
+    function handleAuthFailure() {
+        alert("API Error: Bad Credentials (401 Unauthorized).\nYour current GitHub Token has been revoked or deactivated.\n\nPlease configure a new valid token to continue.");
+        promptForNewToken();
+    }
+</script>
+
+</body> 
+</html>
