@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosify - Admin Lead Hub</title>
+    
+    <!-- Tailwind CSS (Material 3 Theme Palette) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6750A4',
+                        onPrimary: '#FFFFFF',
+                        primaryContainer: '#EADDFF',
+                        onPrimaryContainer: '#21005D',
+                        surface: '#FEF7FF',
+                        surfaceVariant: '#E7E0EC',
+                        onSurface: '#1D1B20',
+                        onSurfaceVariant: '#49454F',
+                        outline: '#79747E',
+                        secondaryContainer: '#E8DEF8',
+                        error: '#B3261E',
+                        bubbleOut: '#d9fdd3',
+                        bubbleIn: '#ffffff'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #FEF7FF;
+        }
+        .admin-locked {
+            overflow: hidden;
+            height: 100vh;
+        }
+        /* Custom scrollbar */
+        .chat-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+        /* Custom Typing Dot Animation */
+        @keyframes typing-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .typing-dot {
+            animation: typing-bounce 1.2s infinite ease-in-out;
+        }
+
+        /* Printable Document Layout rules */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printArea, #printArea * {
+                visibility: visible;
+            }
+            #printArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="admin-locked text-onSurface flex flex-col h-screen">
+
+    <!-- Password Verification Gate -->
+    <div id="passwordGate" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-surface px-4 text-center">
+        <div class="max-w-md w-full bg-surfaceVariant p-8 rounded-[28px] shadow-sm border border-outline/10">
+            <span class="material-symbols-outlined text-primary text-5xl mb-4">lock</span>
+            <h2 class="text-2xl font-semibold mb-2 text-onSurface">Admin Verification Required</h2>
+            <p class="text-sm text-onSurfaceVariant mb-6">Enter admin password to access the Prosify Lead Hub.</p>
+            <form id="gateForm" onsubmit="verifyPassword(event)">
+                <div class="relative mb-4">
+                    <input type="password" id="adminPassword" placeholder="Enter Password" required
+                        class="w-full px-4 py-3 bg-surface border border-outline rounded-lg focus:outline-none focus:border-primary text-onSurface">
+                </div>
+                <button type="submit" 
+                    class="w-full bg-primary hover:bg-opacity-90 text-onPrimary font-medium py-3 rounded-full transition duration-200 shadow">
+                    Verify & Unlock
+                </button>
+                <p id="gateError" class="text-error text-xs mt-3 hidden">Incorrect credentials. Please try again.</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Workspace Dashboard Container -->
+    <div id="mainDashboard" class="hidden h-full flex flex-col overflow-hidden">
+        
+        <!-- Header Bar -->
+        <header class="bg-surface border-b border-outline/10 px-6 py-4 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-3xl">forum</span>
+                <div>
+                    <h1 class="text-lg font-bold text-primary tracking-tight">Prosify Admin Lead Hub</h1>
+                    <p class="text-xs text-onSurfaceVariant font-medium">Real-time Lead Scoring & Communication Engine</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="promptForNewToken()" class="text-xs text-primary hover:bg-primary/5 px-4 py-2 rounded-full border border-primary/20 transition font-bold">
+                    Configure Git Token
+                </button>
+                <span id="tokenStatusBadge" class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-error/10 text-error flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-error"></span> API Offline
+                </span>
+            </div>
+        </header>
+
+        <!-- Dynamic Split-Pane Chat Console -->
+        <div class="flex-grow flex overflow-hidden">
+            
+            <!-- Left Panel: Chat Sessions list sorted by priority score -->
+            <aside class="w-80 md:w-96 border-r border-outline/10 flex flex-col flex-shrink-0 bg-surface">
+                <!-- Search bar -->
+                <div class="p-4 border-b border-outline/10">
+                    <div class="relative">
+                        <input type="text" id="sessionSearchInput" oninput="filterSessions()" placeholder="Search leads by name, phone or project..." class="w-full bg-surfaceVariant border border-outline/15 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:border-primary">
+                        <span class="material-symbols-outlined absolute left-3 top-3 text-outline text-sm">search</span>
+                    </div>
+                </div>
+
+                <!-- Scrollable list of users -->
+                <div id="sessionList" class="flex-grow overflow-y-auto chat-scroll divide-y divide-outline/5">
+                    <div class="p-8 text-center text-xs text-onSurfaceVariant">
+                        <div class="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mx-auto mb-3"></div>
+                        <span>Synchronizing active chat channels...</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Panel: Active Chat thread workspace -->
+            <main class="flex-grow flex flex-col bg-gray-50 overflow-hidden relative">
+                
+                <!-- Active Chat Header -->
+                <header id="activeChatHeader" class="bg-surface border-b border-outline/10 px-6 py-3 flex items-center justify-between flex-shrink-0 hidden">
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <span class="material-symbols-outlined text-4xl text-primary bg-primaryContainer/30 p-2 rounded-full">account_circle</span>
+                            <span id="userPresenceBadge" class="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-gray-400 border-2 border-surface"></span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 id="activeUserName" class="text-sm font-bold text-onSurface">Lead Name</h2>
+                                <span id="activeUserPresenceText" class="text-[10px] text-gray-500 font-semibold uppercase">offline</span>
+                            </div>
+                            <p class="text-[11px] text-onSurfaceVariant font-semibold">
+                                Project: <span id="activeProjectName" class="text-primary">None Selected</span> | 
+                                Phone: <span id="activeUserPhone" class="text-onSurface">None</span>
+                            </p>
+                            <!-- Referral meta row -->
+                            <p id="activeReferralRow" class="text-[10px] text-green-700 font-bold mt-0.5 hidden flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">handshake</span>
+                                <span id="activeReferralText">Referred by Affiliate Code</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Header actions -->
+                    <div class="flex items-center gap-3">
+                        <div class="bg-primaryContainer text-onPrimaryContainer px-4 py-2 rounded-2xl flex items-center gap-2 shadow-sm">
+                            <span class="material-symbols-outlined text-sm">local_fire_department</span>
+                            <span id="activeLeadScore" class="text-xs font-extrabold">Lead Score: 5</span>
+                        </div>
+                        <button onclick="exportActiveChatToPDF()" class="text-xs text-primary hover:bg-primary/5 px-4 py-2 rounded-full border border-primary/20 transition flex items-center gap-1.5 font-bold">
+                            <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Export Chat
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Message Timeline view -->
+                <div id="activeChatBody" class="flex-grow overflow-y-auto px-6 py-6 space-y-4 chat-scroll hidden" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #efeae2;">
+                    <!-- Bubbles populated dynamically -->
+                </div>
+
+                <!-- Static placeholder when no chats are selected -->
+                <div id="chatPlaceholder" class="flex-grow flex flex-col items-center justify-center text-center p-8">
+                    <span class="material-symbols-outlined text-primary/40 text-7xl mb-4">forum</span>
+                    <h3 class="text-lg font-bold text-onSurface">Select a Lead to Start Conversations</h3>
+                    <p class="text-xs text-onSurfaceVariant max-w-sm mt-1">Click on any active real estate inquiry session on the sidebar panel to calculate scores, view documents, and converse.</p>
+                </div>
+
+                <!-- Input Dock -->
+                <footer id="activeChatFooter" class="bg-surface border-t border-outline/10 px-4 py-3 flex items-center gap-2 flex-shrink-0 hidden">
+                    <!-- Hidden Image File input -->
+                    <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleAdminImageSelection(this)">
+                    <button onclick="triggerImageInput()" class="w-11 h-11 rounded-full bg-surfaceVariant hover:bg-secondaryContainer flex items-center justify-center transition flex-shrink-0 text-onSurfaceVariant">
+                        <span class="material-symbols-outlined text-xl">attach_file</span>
+                    </button>
+                    
+                    <div class="flex-grow relative">
+                        <input type="text" id="adminMessageInput" placeholder="Type an administrative message..." oninput="handleTypingNotification()" class="w-full bg-surfaceVariant border border-outline/10 rounded-full py-3 pl-5 pr-10 text-xs text-onSurface placeholder-onSurfaceVariant focus:outline-none focus:border-primary">
+                    </div>
+
+                    <button onclick="handleTextMessageSend()" class="w-11 h-11 rounded-full bg-primary text-onPrimary flex items-center justify-center hover:bg-opacity-95 transition flex-shrink-0 shadow-md">
+                        <span class="material-symbols-outlined text-lg">send</span>
+                    </button>
+                </footer>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Hidden Printable Output Container -->
+    <div id="printArea" class="hidden p-8 space-y-6">
+        <!-- Print Header -->
+        <div class="border-b-2 border-gray-300 pb-4">
+            <h1 class="text-2xl font-black text-gray-900">PROSIFY - CHAT TRANSCRIPT FILE</h1>
+            <p class="text-xs text-gray-500 font-semibold mt-1">Printed on: <span id="printDateString">N/A</span></p>
+            <div class="mt-4 grid grid-cols-2 gap-4 text-xs font-semibold text-gray-700">
+                <div>
+                    <p>Client Name: <span id="printClientName" class="font-extrabold text-black">N/A</span></p>
+                    <p class="mt-1">Inquiry Project: <span id="printProjectName" class="font-extrabold text-black">N/A</span></p>
+                    <p class="mt-1">Mobile No: <span id="printClientPhone" class="font-extrabold text-black">N/A</span></p>
+                </div>
+                <div class="text-right">
+                    <p>Calculated Lead Score: <span id="printLeadScore" class="font-extrabold text-purple-700 text-sm">5</span></p>
+                    <p class="mt-1" id="printReferrerRow">Referrer: <span id="printReferrerName" class="font-extrabold text-black">N/A</span></p>
+                </div>
+            </div>
+        </div>
+        <!-- Print Message Log -->
+        <div id="printMessageLog" class="space-y-4">
+            <!-- Bubbles populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Firebase System Module Integrations -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, update, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+
+        // Web App Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDneyB_Y2FWvNKZuzuprP0FSfr7EKJkIQ",
+            authDomain: "bc2r37b2y78.firebaseapp.com",
+            databaseURL: "https://bc2r37b2y78-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "bc2r37b2y78",
+            storageBucket: "bc2r37b2y78.firebasestorage.app",
+            messagingSenderId: "636563858750",
+            appId: "1:636563858750:web:39c96e81c74dbf8a1b386f",
+            measurementId: "G-W102P0G64G"
+        };
+
+        // Initialize Firebase instances
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Global states
+        let rawSessionKeys = [];
+        let sessionDetailsMap = {};
+        let selectedSessionId = null;
+        let affiliatesList = [];
+        let localMessageCache = []; // Active thread messages cache
+
+        // Fetch sequenced affiliates database chunk from GitHub
+        async function loadAffiliates() {
+            try {
+                const res = await fetch("https://raw.githubusercontent.com/qg7823gr23rb23ct81tvbtw34b6q3v43q46q48/q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w/main/affil.json");
+                if (res.ok) {
+                    affiliatesList = await res.json();
+                }
+            } catch (err) {
+                console.warn("Failed retrieving affiliate indexes: ", err);
+            }
+        }
+
+        // EXPANSIVE, MULTILINGUAL KEYWORD DATASET (English, Hindi, Hinglish, Tamil, Tanglish)
+        // High Intent Keywords (+10 Points)
+        const HIGH_INTENT_KEYWORDS = [
+            "site visit", "visit", "schedule tour", "face to face", "meet", "appointment", "office visit", "visit the project", "come tomorrow", "direction", "location visit", "physical visit", "when can i see", "show me the flat", "sample flat", "sample house", "book a visit", "arrange a visit", "planning to come", "on-site", "visit tomorrow", "visit this weekend", "weekend visit", "inspection", "property tour", "visit today", "schedule visit", "office address", "location map", "how to reach", "coordinate meet", "arrange tour", "book appointment", "interested in visit", "site visit details", "visit the site", "flat dekhna", "site dekhna",
+            "विजिट", "साइट विजिट", "देखने आना", "दिखाओ", "देखना है", "अपॉइंटमेंट", "मिलना है", "आना है", "दौरा", "कल आऊंगा", "कल आउंगी", "नक्शा रास्ता", "सैंपल फ्लैट", "सैंपल हाउस", "घर देखना", "फ्लैट देखना", "एड्रेस क्या है",
+            "dekhne aana", "appointment chahiye", "kal aunga", "kal aaunga", "address kya hai", "sample flat dekhna", "flat kab dekh", "milna chahta", "kab aao",
+            "விஜயம்", "நேரில் பார்க்க", "பார்க்க வேண்டும்", "இடம் பார்க்க", "நேரடி விஜயம்", "வீடு பார்க்க", "மாதிரி வீடு", "எப்போது வரலாம்", "முகவரி", "இடம் எங்கே", "இடம் பார்க்க வேண்டும்", "நாளை வருகிறேன்", "வருகை", "சந்திப்பு",
+            "nerla pakkanum", "pakka varam", "eppo varalam", "address enna", "neril parkka", "naalaiki varen", "house pakkanum", "flat pakkanum", "site pakkanum"
+        ];
+
+        // Medium Intent Financials (+5 Points per unique keyword match)
+        const MEDIUM_INTENT_FINANCIALS = [
+            "price", "pricing", "cost", "budget", "payment plan", "down payment", "loan", "bank loan", "emi", "finance", "rate per sqft", "sqft rate", "total cost", "maintenance charges", "all inclusive", "booking amount", "discount", "offer", "negotiable", "scheme", "installment", "funding", "interest rate", "tax", "gst", "stamp duty", "registration charges", "payout", "commission", "token money", "agreement value", "downpayment", "home loan", "housing loan", "mortgage", "interest", "rebate", "cashback", "refund",
+            "कीमत", "दाम", "लोन", "बजट", "कितना है", "रेट", "ब्याज", "छूट", "डिस्काउंट", "पेमेंट प्लान", "टोकन मनी", "डाउन पेमेंट", "किश्त", "ईएमआई", "खर्चा", "रजिस्ट्रेशन", "टैक्स", "जीएसटी", "कमीशन", "फंड",
+            "kimat", "daam", "loan chahiye", "budget kitna", "rate kya hai", "discount milega", "paisa", "payment option", "emi kitni", "kharcha", "gst kitna", "stamp duty", "bank loan",
+            "விலை", "விலை என்ன", "மதிப்பு", "கட்டணம்", "கடன்", "வீட்டு கடன்", "வட்டி", "தள்ளுபடி", "முன்பணம்", "மாத தவணை", "தவணை முறை", "பதிவு கட்டணம்", "ஜிஎஸ்டி", "பட்ஜெட்", "செலவு", "பணம்", "விகிதம்",
+            "vilai enna", "discount irukka", "loan kedaikuma", "advance panam", "register pannuvom", "cost enna"
+        ];
+
+        // Medium Intent Structural & Structural Specifications (+5 Points per unique keyword match)
+        const MEDIUM_INTENT_STRUCTURAL = [
+            "carpet area", "built up", "super built", "sqft", "square feet", "floor plan", "layout", "bhk", "configuration", "dimension", "facing", "vastu", "east facing", "west facing", "possession date", "ready to move", "rtm", "under construction", "construction status", "amenities", "parking", "car parking", "clubhouse", "swimming pool", "floor number", "high rise", "open space", "balcony", "terrace", "rera registered", "rera approved", "rera number", "khata", "occupancy certificate", "oc", "cc", "title deed", "possession", "amenity", "lift", "elevator", "builder", "developer",
+            "कारपेट एरिया", "स्क्वायर फीट", "फ्लोर प्लान", "लेआउट", "बीएचके", "दिशा", "वास्तू", "कब्जा", "रेडी टू मूव", "कंस्ट्रक्शन", "सुविधाएं", "पार्किंग", "लिफ्ट", "बालकनी", "छत", "रेरा", "जमीन", "बिल्डर", "फ्लैट साइज",
+            "possession kab", "ready to move", "under construction", "amenities kya hai", "parking hai kya", "rera approved", "builder kaun",
+            "சதுர அடி", "அளவீடு", "வரைபடம்", "அறை", "வாஸ்து", "கட்டுமானம்", "வசதிகள்", "கார் பார்க்கிங்", "பால்கனி", "லிப்ட்", "ரெரா", "பில்டர்", "முடிப்புகள்", "அடுக்குமாடி", "நிலம்", "வீட்டு அளவு",
+            "parking irukka", "rera registered", "builder yar", "construction eppo"
+        ];
+
+        // General Information (+3 Points per unique keyword match)
+        const GENERAL_INFO_KEYWORDS = [
+            "brochure", "pdf", "images", "photos", "video", "landmark", "near by", "school near", "hospital near", "metro station", "connectivity", "address", "landmark", "reviews", "feedback", "contact number", "sales partner", "whatsapp number", "call back", "more details", "send details", "share brochure", "brochure pdf", "project details", "any unit left", "available units",
+            "ब्रोशर", "पीडीएफ", "फोटो", "वीडियो", "नक्शा", "रास्ता", "स्कूल", "अस्पताल", "मेट्रो", "लैंडमार्क", "कांटेक्ट नंबर", "व्हाट्सएप", "डिटेल्स",
+            "brochure send", "pdf de do", "video dikhao", "metro station pass", "details bhejo", "whatsapp karo",
+            "கையேடு", "புகைப்படம்", "காணொளி", "பள்ளி", "மருத்துவமனை", "மெட்ரோ", "அடையாளம்", "தொடர்பு எண்", "வாட்ஸ்அப்", "விவரங்கள்", "மேலும் விவரங்கள்",
+            "brochure anupunga", "photo anupu", "video irukka", "landmark enna", "school pakkatula", "details venum", "details share panunga"
+        ];
+
+        // Process live lead score calculations [Lead Scoring Algorithm with Punctuation Toleration]
+        function calculateLeadScore(messagesList) {
+            let score = 5; // Starts at baseline of 5
+            
+            // Concatenate all user text entries into one lowercased flat string
+            const rawUserText = messagesList
+                .filter(m => m.sender === "user")
+                .map(m => m.text ? m.text.toString().toLowerCase() : "")
+                .join(" ");
+
+            // Clean punctuation/symbols on-the-fly to prevent parsing conflicts (e.g., "cost?", "visit!")
+            const cleanedUserText = rawUserText
+                .replace(/[?!@#$%\^&*()_\-+=\[\]{}|\\;:'",.<>\/`~]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (!cleanedUserText) return score;
+
+            // 1. High Intent Scan -> Add 10 points for each match dynamically
+            HIGH_INTENT_KEYWORDS.forEach(kw => {
+                if (cleanedUserText.includes(kw)) {
+                    score += 10;
+                }
+            });
+
+            // 2. Financials scanning -> Add 5 points for each matched unique keyword
+            MEDIUM_INTENT_FINANCIALS.forEach(kw => {
+                if (cleanedUserText.includes(kw)) {
+                    score += 5;
+                }
+            });
+
+            // 3. Structural scanning -> Add 5 points for each matched unique keyword
+            MEDIUM_INTENT_STRUCTURAL.forEach(kw => {
+                if (cleanedUserText.includes(kw)) {
+                    score += 5;
+                }
+            });
+
+            // 4. General Info scanning -> Add 3 points for each matched unique keyword
+            GENERAL_INFO_KEYWORDS.forEach(kw => {
+                if (cleanedUserText.includes(kw)) {
+                    score += 3;
+                }
+            });
+
+            return score;
+        }
+
+        // Initialize App Listening Streams
+        window.initializeAdminApp = function() {
+            loadAffiliates();
+            
+            // Listen to active sessions node in Firebase RTDB
+            const activeSessionsRef = ref(db, "chat_sessions");
+            onValue(activeSessionsRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    document.getElementById('sessionList').innerHTML = `<div class="p-8 text-center text-xs text-onSurfaceVariant">No active conversations found.</div>`;
+                    return;
+                }
+
+                rawSessionKeys = Object.keys(data);
+                
+                // Track dynamic scores & metadata
+                let populatedSessions = rawSessionKeys.map(key => {
+                    const session = data[key];
+                    const meta = session.meta || {};
+                    const messagesMap = session.messages || {};
+                    
+                    // Format message array
+                    const messagesList = Object.keys(messagesMap).map(id => ({ id, ...messagesMap[id] }));
+                    const leadScore = calculateLeadScore(messagesList);
+
+                    return {
+                        id: key,
+                        meta: meta,
+                        messages: messagesList,
+                        leadScore: leadScore
+                    };
+                });
+
+                // Priority Sorting: Sort Descending (Hottest leads first) [Priority sorting]
+                populatedSessions.sort((a, b) => b.leadScore - a.leadScore);
+
+                // Populate lookup index
+                sessionDetailsMap = {};
+                populatedSessions.forEach(s => {
+                    sessionDetailsMap[s.id] = s;
+                });
+
+                // Render Sidebar list
+                renderSessionsList(populatedSessions);
+
+                // Update active chat window if currently open
+                if (selectedSessionId) {
+                    syncActiveChatWindow(selectedSessionId);
+                }
+            });
+        };
+
+        // Render sorted sessions in sidebar [Priority card indicators]
+        function renderSessionsList(sessions) {
+            const list = document.getElementById('sessionList');
+            if (!list) return;
+
+            if (sessions.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-xs text-onSurfaceVariant">No leads found.</div>`;
+                return;
+            }
+
+            list.innerHTML = sessions.map(s => {
+                const meta = s.meta || {};
+                const isSelected = s.id === selectedSessionId;
+                const isOnline = meta.online === true;
+                const scoreColor = s.leadScore >= 35 ? 'bg-emerald-100 text-emerald-800 animate-pulse font-extrabold' : (s.leadScore >= 15 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800');
+                
+                // Typing text indicators
+                let statusText = isOnline ? 'online' : 'offline';
+                if (meta.typing === true) {
+                    statusText = '<span class="text-primary font-bold">typing...</span>';
+                }
+
+                return `
+                    <div onclick="selectActiveSession('${s.id}')" class="p-4 flex flex-col gap-2 transition cursor-pointer select-none ${isSelected ? 'bg-secondaryContainer' : 'hover:bg-surfaceVariant/40'}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-300'} border-2 border-surface"></span>
+                                <h4 class="text-xs font-bold text-onSurface leading-tight line-clamp-1">${meta.userName || 'Guest User'}</h4>
+                            </div>
+                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${scoreColor}">Score: ${s.leadScore}</span>
+                        </div>
+                        <p class="text-[10px] text-onSurfaceVariant font-semibold">Project: <span class="text-primary font-bold">${meta.project || 'Prosify Heights'}</span></p>
+                        <div class="flex items-center justify-between text-[10px] text-gray-500 font-semibold mt-1">
+                            <span>+91 ${meta.userPhone || 'N/A'}</span>
+                            <span>${statusText}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Active Session selection binding
+        window.selectActiveSession = function(sessionId) {
+            // Disconnect old active streams mapping
+            if (selectedSessionId) {
+                update(ref(db, `chat_sessions/${selectedSessionId}/meta`), {
+                    advisorOnline: false,
+                    advisorTyping: false
+                });
+            }
+
+            selectedSessionId = sessionId;
+
+            // Mark advisor as online inside newly selected workspace
+            update(ref(db, `chat_sessions/${selectedSessionId}/meta`), {
+                advisorOnline: true,
+                advisorLastSeen: serverTimestamp(),
+                advisorTyping: false
+            });
+
+            // Set presence offline disconnect rules
+            onDisconnect(ref(db, `chat_sessions/${selectedSessionId}/meta/advisorOnline`)).set(false);
+            onDisconnect(ref(db, `chat_sessions/${selectedSessionId}/meta/advisorLastSeen`)).set(serverTimestamp());
+            onDisconnect(ref(db, `chat_sessions/${selectedSessionId}/meta/advisorTyping`)).set(false);
+
+            document.getElementById('chatPlaceholder').classList.add('hidden');
+            document.getElementById('activeChatHeader').classList.remove('hidden');
+            document.getElementById('activeChatBody').classList.remove('hidden');
+            document.getElementById('activeChatFooter').classList.remove('hidden');
+
+            syncActiveChatWindow(sessionId);
+        };
+
+        // Real-time synchronization of open workspace
+        function syncActiveChatWindow(sessionId) {
+            const session = sessionDetailsMap[sessionId];
+            if (!session) return;
+
+            const meta = session.meta || {};
+            localMessageCache = session.messages || [];
+
+            document.getElementById('activeUserName').innerText = meta.userName || 'Guest User';
+            document.getElementById('activeProjectName').innerText = meta.project || 'None Selected';
+            document.getElementById('activeUserPhone').innerText = `+91 ${meta.userPhone || 'N/A'}`;
+            document.getElementById('activeLeadScore').innerText = `Lead Score: ${session.leadScore}`;
+
+            // Sync User presence text and badges
+            const presenceBadge = document.getElementById('userPresenceBadge');
+            const presenceText = document.getElementById('activeUserPresenceText');
+            if (meta.online === true) {
+                presenceBadge.className = "absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-surface";
+                presenceText.innerText = meta.typing === true ? "typing..." : "online";
+            } else {
+                presenceBadge.className = "absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-gray-400 border-2 border-surface";
+                if (meta.lastSeen) {
+                    presenceText.innerText = `last seen ${formatMessageTime(meta.lastSeen)}`;
+                } else {
+                    presenceText.innerText = "offline";
+                }
+            }
+
+            // Affiliate match lookup
+            const refRow = document.getElementById('activeReferralRow');
+            const refText = document.getElementById('activeReferralText');
+            if (meta.refCode && meta.refCode !== "none") {
+                const partner = affiliatesList.find(a => a.affiliateId === meta.refCode && a.status === 'accepted');
+                refRow.classList.remove('hidden');
+                if (partner) {
+                    refText.innerText = `Referred by: ${partner.firstName} ${partner.lastName} (ID: ${meta.refCode})`;
+                } else {
+                    refText.innerText = `Referred via Partner Code: ${meta.refCode}`;
+                }
+            } else {
+                refRow.classList.add('hidden');
+            }
+
+            // Render timeline bubbles
+            renderTimelineBubbles(localMessageCache);
+        }
+
+        // Render Chat message bubbles inside active workspace
+        function renderTimelineBubbles(messages) {
+            const body = document.getElementById('activeChatBody');
+            if (!body) return;
+
+            let html = messages.map(msg => {
+                const isAdmin = msg.sender === "advisor";
+                const timeStr = formatMessageTime(msg.timestamp);
+                
+                let bubbleContent = "";
+                if (msg.fileType === "image") {
+                    bubbleContent = `<img src="${msg.fileUrl}" class="rounded-lg max-w-full h-auto object-cover max-h-60 shadow-sm border border-gray-100" alt="Image Message">`;
+                } else if (msg.fileType === "pdf") {
+                    bubbleContent = `
+                        <a href="${msg.fileUrl}" target="_blank" download="${msg.fileName || 'brochure.pdf'}" class="flex items-center gap-3 bg-white/50 hover:bg-white/80 p-3 rounded-xl border border-gray-200/50 transition">
+                            <div class="bg-red-100 w-10 h-10 rounded-lg flex items-center justify-center text-red-600 flex-shrink-0">
+                                <span class="material-symbols-outlined text-red-600 text-2xl">picture_as_pdf</span>
+                            </div>
+                            <div class="overflow-hidden flex-grow">
+                                <p class="text-xs font-bold text-gray-800 truncate">${msg.fileName || 'brochure.pdf'}</p>
+                                <p class="text-[10px] text-gray-500 font-semibold uppercase mt-0.5">Click to Open PDF</p>
+                            </div>
+                        </a>
+                    `;
+                } else {
+                    bubbleContent = `<p class="text-xs font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">${msg.text}</p>`;
+                }
+
+                // Ticks for advisor
+                let ticksHtml = "";
+                if (isAdmin) {
+                    if (msg.status === "read") {
+                        ticksHtml = `<span class="text-blue-400 font-bold ml-1" style="font-size: 10px;">✓✓</span>`;
+                    } else if (msg.status === "delivered") {
+                        ticksHtml = `<span class="text-gray-400 font-bold ml-1" style="font-size: 10px;">✓✓</span>`;
+                    } else {
+                        ticksHtml = `<span class="text-gray-400 font-semibold ml-1" style="font-size: 10px;">✓</span>`;
+                    }
+                }
+
+                return `
+                    <div class="flex w-full ${isAdmin ? 'justify-end' : 'justify-start'} animate-fade-in">
+                        <div class="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm relative ${isAdmin ? 'bg-bubbleOut rounded-tr-none' : 'bg-bubbleIn rounded-tl-none'}">
+                            ${bubbleContent}
+                            <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-gray-500 font-medium">
+                                <span>${timeStr}</span>
+                                ${ticksHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Append bouncing bubble typing indicator if user is typing
+            const activeSession = sessionDetailsMap[selectedSessionId];
+            if (activeSession && activeSession.meta && activeSession.meta.typing === true) {
+                html += `
+                    <div class="flex w-full justify-start animate-fade-in">
+                        <div class="max-w-[75%] rounded-2xl px-4 py-3.5 bg-bubbleIn rounded-tl-none shadow-sm flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot" style="animation-delay: 0s;"></span>
+                            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot" style="animation-delay: 0.2s;"></span>
+                            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot" style="animation-delay: 0.4s;"></span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            body.innerHTML = html;
+            body.scrollTop = body.scrollHeight;
+        }
+
+        // Outgoing Message Dispatcher
+        window.handleTextMessageSend = async function() {
+            if (!selectedSessionId) return;
+            const input = document.getElementById('adminMessageInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = "";
+            update(ref(db, `chat_sessions/${selectedSessionId}/meta`), { advisorTyping: false });
+
+            const sessionMsgRef = ref(db, `chat_sessions/${selectedSessionId}/messages`);
+            const newMsgRef = push(sessionMsgRef);
+            await set(newMsgRef, {
+                sender: "advisor",
+                text: text,
+                timestamp: Date.now(),
+                status: "sent"
+            });
+        };
+
+        // Image Attachment Compression down below 50KB limits
+        window.handleAdminImageSelection = function(input) {
+            if (!selectedSessionId) return;
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = async function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        const maxDimension = 600;
+                        if (width > maxDimension || height > maxDimension) {
+                            if (width > height) {
+                                height = Math.round((height * maxDimension) / width);
+                                width = maxDimension;
+                            } else {
+                                width = Math.round((width * maxDimension) / height);
+                                height = maxDimension;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        let quality = 0.7;
+                        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+                        // Compression Loop strictly below 50KB
+                        while (dataUrl.length > 68000 && quality > 0.1) {
+                            quality -= 0.1;
+                            dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        }
+
+                        // Save image message to Firebase RTDB
+                        const sessionMsgRef = ref(db, `chat_sessions/${selectedSessionId}/messages`);
+                        const newMsgRef = push(sessionMsgRef);
+                        await set(newMsgRef, {
+                            sender: "advisor",
+                            text: "Sent an image",
+                            fileUrl: dataUrl,
+                            fileType: "image",
+                            timestamp: Date.now(),
+                            status: "sent"
+                        });
+                    };
+                };
+            }
+        };
+
+        // Typing Notification Debounce
+        let typingTimeout = null;
+        window.handleTypingNotification = function() {
+            if (!selectedSessionId) return;
+            update(ref(db, `chat_sessions/${selectedSessionId}/meta`), { advisorTyping: true });
+            
+            if (typingTimeout) clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                update(ref(db, `chat_sessions/${selectedSessionId}/meta`), { advisorTyping: false });
+            }, 2000);
+        };
+
+        // Export active chat history dynamically formatted to vector-sharp PDF document [PDF Export Module]
+        window.exportActiveChatToPDF = function() {
+            if (!selectedSessionId || localMessageCache.length === 0) return;
+            
+            const session = sessionDetailsMap[selectedSessionId];
+            if (!session) return;
+            
+            const meta = session.meta || {};
+
+            // Populate printable overlay variables
+            document.getElementById('printDateString').innerText = new Date().toLocaleString();
+            document.getElementById('printClientName').innerText = meta.userName || 'Guest User';
+            document.getElementById('printProjectName').innerText = meta.project || 'None Selected';
+            document.getElementById('printClientPhone').innerText = `+91 ${meta.userPhone || 'N/A'}`;
+            document.getElementById('printLeadScore').innerText = session.leadScore;
+
+            const printRefRow = document.getElementById('printReferrerRow');
+            if (meta.refCode && meta.refCode !== "none") {
+                printRefRow.style.display = "block";
+                const partner = affiliatesList.find(a => a.affiliateId === meta.refCode && a.status === 'accepted');
+                if (partner) {
+                    document.getElementById('printReferrerName').innerText = `${partner.firstName} ${partner.lastName} (ID: ${meta.refCode})`;
+                } else {
+                    document.getElementById('printReferrerName').innerText = meta.refCode;
+                }
+            } else {
+                printRefRow.style.display = "none";
+            }
+
+            // Populate printed message timeline
+            const logContainer = document.getElementById('printMessageLog');
+            logContainer.innerHTML = localMessageCache.map(msg => {
+                const isAdmin = msg.sender === "advisor";
+                const timeStr = formatMessageTime(msg.timestamp);
+                const senderLabel = isAdmin ? "Prosify Advisor" : (meta.userName || "Client");
+                
+                let textVal = "";
+                if (msg.fileType === "image") {
+                    textVal = "[Image Attachment]";
+                } else if (msg.fileType === "pdf") {
+                    textVal = `[PDF Document: ${msg.fileName || 'brochure.pdf'}]`;
+                } else {
+                    textVal = msg.text;
+                }
+
+                return `
+                    <div class="border-b border-gray-100 pb-2">
+                        <div class="flex justify-between items-center text-[10px] text-gray-500 font-bold mb-1">
+                            <span class="${isAdmin ? 'text-purple-700' : 'text-blue-700'}">${senderLabel}</span>
+                            <span>${timeStr}</span>
+                        </div>
+                        <p class="text-xs text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">${textVal}</p>
+                    </div>
+                `;
+            }).join('');
+
+            // Trigger system PDF printing window
+            window.print();
+        };
+
+        // Key Listeners
+        document.getElementById('adminMessageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleTextMessageSend();
+        });
+    </script>
+
+    <!-- General UI script block -->
+    <script>
+        const AUTH_HASH = "Hello4home@12345";
+        const DEFAULT_PAT_B64 = "Z2l0aHViX3BhdF8xMUNFVlU3VlEwS212R2NJcUljVElWX3lUY3RJTlRzaVk4ZTNIVjBQb2RVdnJiSjRaWjlIMG9HVzVCMFpzUVo4cTdNWU5HWUsyUTJTcWdTb2Ex";
+        const REPO_OWNER = "qg7823gr23rb23ct81tvbtw34b6q3v43q46q48";
+        const REPO_NAME = "q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w";
+
+        function getActiveToken() {
+            return localStorage.getItem('custom_github_pat') || atob(DEFAULT_PAT_B64);
+        }
+
+        function promptForNewToken() {
+            const freshToken = prompt("Enter a valid GitHub Personal Access Token (PAT):", getActiveToken());
+            if (freshToken) {
+                localStorage.setItem('custom_github_pat', freshToken.trim());
+                alert("GitHub Token updated. Reloading page...");
+                window.location.reload();
+            }
+        }
+
+        function updateTokenStatus() {
+            const token = getActiveToken();
+            const badge = document.getElementById('tokenStatusBadge');
+            if (!badge) return;
+            
+            if (token && token !== atob(DEFAULT_PAT_B64)) {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> API Online`;
+            } else {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Default Credentials`;
+            }
+        }
+
+        function verifyPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('adminPassword').value;
+            if (input === AUTH_HASH) {
+                document.getElementById('passwordGate').classList.add('hidden');
+                document.body.classList.remove('admin-locked');
+                document.getElementById('mainDashboard').classList.remove('hidden');
+                updateTokenStatus();
+                
+                // Initialize modules
+                if (typeof window.initializeAdminApp === 'function') {
+                    window.initializeAdminApp();
+                }
+            } else {
+                const err = document.getElementById('gateError');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        function formatMessageTime(timestamp) {
+            if (!timestamp) return "";
+            const date = new Date(timestamp);
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0'+minutes : minutes;
+            return hours + ':' + minutes + ' ' + ampm;
+        }
+
+        function triggerImageInput() {
+            document.getElementById('imageInput').click();
+        }
+
+        // Sidebar filtering
+        window.filterSessions = function() {
+            const query = document.getElementById('sessionSearchInput').value.toLowerCase().trim();
+            const list = document.getElementById('sessionList');
+            const items = list.children;
+            
+            for (let item of items) {
+                const text = item.innerText ? item.innerText.toLowerCase() : "";
+                if (!query || text.includes(query)) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            }
+        };
+    </script>
+</body>
+</html>
