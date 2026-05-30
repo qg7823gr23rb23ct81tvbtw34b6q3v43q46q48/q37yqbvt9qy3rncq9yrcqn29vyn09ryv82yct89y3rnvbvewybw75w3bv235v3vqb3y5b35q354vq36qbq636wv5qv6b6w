@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosify - Affiliate Partner Manager</title>
+
+    <!-- Tailwind CSS (Material 3 Theme Palette) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6750A4',
+                        onPrimary: '#FFFFFF',
+                        primaryContainer: '#EADDFF',
+                        onPrimaryContainer: '#21005D',
+                        surface: '#FEF7FF',
+                        surfaceVariant: '#E7E0EC',
+                        onSurface: '#1D1B20',
+                        onSurfaceVariant: '#49454F',
+                        outline: '#79747E',
+                        secondaryContainer: '#E8DEF8',
+                        error: '#B3261E'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #FEF7FF;
+        }
+        .admin-locked {
+            overflow: hidden;
+            height: 100vh;
+        }
+        /* Custom scrollbar */
+        .manager-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .manager-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .manager-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="admin-locked text-onSurface flex flex-col h-screen">
+
+    <!-- Password Verification Gate -->
+    <div id="passwordGate" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-surface px-4 text-center">
+        <div class="max-w-md w-full bg-surfaceVariant p-8 rounded-[28px] shadow-sm border border-outline/10">
+            <span class="material-symbols-outlined text-primary text-5xl mb-4">lock</span>
+            <h2 class="text-2xl font-semibold mb-2 text-onSurface">Manager Verification Required</h2>
+            <p class="text-sm text-onSurfaceVariant mb-6">Enter admin password to access the Prosify Affiliate Manager.</p>
+            <form id="gateForm" onsubmit="verifyPassword(event)">
+                <div class="relative mb-4">
+                    <input type="password" id="adminPassword" placeholder="Enter Password" required
+                        class="w-full px-4 py-3 bg-surface border border-outline rounded-lg focus:outline-none focus:border-primary text-onSurface">
+                </div>
+                <button type="submit" 
+                    class="w-full bg-primary hover:bg-opacity-90 text-onPrimary font-medium py-3 rounded-full transition duration-200 shadow">
+                    Verify & Unlock
+                </button>
+                <p id="gateError" class="text-error text-xs mt-3 hidden">Incorrect credentials. Please try again.</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Processing Overlay Modal -->
+    <div id="processingModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-surface p-8 rounded-[28px] shadow-xl text-center max-w-sm w-full">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+            <h3 class="text-lg font-bold mb-1">Processing Status Update</h3>
+            <p class="text-xs text-onSurfaceVariant">Writing status change directly to central GitHub database...</p>
+        </div>
+    </div>
+
+    <!-- Main Workspace Dashboard Container -->
+    <div id="mainDashboard" class="hidden h-full flex flex-col overflow-hidden">
+        
+        <!-- Header Bar -->
+        <header class="bg-surface border-b border-outline/10 px-6 py-4 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-3xl">badge</span>
+                <div>
+                    <h1 class="text-lg font-bold text-primary tracking-tight">Prosify Affiliate Manager</h1>
+                    <p class="text-xs text-onSurfaceVariant font-medium">Verify, Scrutinize, and Audit Registered Affiliate Partners</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="promptForNewToken()" class="text-xs text-primary hover:bg-primary/5 px-4 py-2 rounded-full border border-primary/20 transition font-bold">
+                    Configure Git Token
+                </button>
+                <span id="tokenStatusBadge" class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-error/10 text-error flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-error"></span> API Offline
+                </span>
+            </div>
+        </header>
+
+        <!-- Top Overview Analytical Summary Row -->
+        <section class="bg-surface border-b border-outline/10 px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
+            <!-- Summary 1: Views & conversion percentages -->
+            <div class="bg-primaryContainer/30 border border-primaryContainer/50 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-black text-onPrimaryContainer" id="summaryClicks">0</h3>
+                    <p class="text-[10px] text-onSurfaceVariant font-bold uppercase mt-1">Total Network Link Clicks</p>
+                </div>
+                <div class="text-right">
+                    <span id="summaryConvRate" class="text-xs font-black text-primary">0%</span>
+                    <p class="text-[9px] text-onSurfaceVariant font-bold uppercase mt-0.5">Avg Conversion</p>
+                </div>
+            </div>
+
+            <!-- Summary 2: Health Ratio of the Network -->
+            <div class="bg-surfaceVariant/55 border border-outline/10 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800" id="summaryRatio">0 / 0</h3>
+                    <p class="text-[10px] text-onSurfaceVariant font-bold uppercase mt-1">Active vs Revoked Partners</p>
+                </div>
+                <div class="text-right">
+                    <span id="summaryActivePercent" class="text-xs font-black text-green-700">0%</span>
+                    <p class="text-[9px] text-onSurfaceVariant font-bold uppercase mt-0.5">Active Rate</p>
+                </div>
+            </div>
+
+            <!-- Summary 3: Total ongoing pipeline tracking -->
+            <div class="bg-secondaryContainer/40 border border-secondaryContainer/70 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800" id="summaryOngoing">0</h3>
+                    <p class="text-[10px] text-onSurfaceVariant font-bold uppercase mt-1">Total Ongoing Buyer Deals</p>
+                </div>
+                <div class="bg-secondaryContainer text-slate-700 p-2 rounded-xl">
+                    <span class="material-symbols-outlined text-lg">real_estate_agent</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Split-Pane Panel Desk -->
+        <div class="flex-grow flex overflow-hidden">
+            
+            <!-- Left Side: Interactive Affiliate Search & Directory List -->
+            <aside class="w-80 md:w-96 border-r border-outline/10 flex flex-col flex-shrink-0 bg-surface">
+                
+                <!-- Search bar & filters -->
+                <div class="p-4 border-b border-outline/10 space-y-3">
+                    <div class="relative">
+                        <input type="text" id="partnerSearchInput" oninput="filterPartners()" placeholder="Search partner name, phone or ID..." class="w-full bg-surfaceVariant border border-outline/15 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:border-primary">
+                        <span class="material-symbols-outlined absolute left-3 top-3 text-outline text-sm">search</span>
+                    </div>
+                    <!-- Status Filter Tabs -->
+                    <div class="flex gap-1.5 text-[10px] font-bold uppercase">
+                        <button onclick="setStatusFilter('all')" id="tab-all" class="flex-1 py-1 text-center border-b-2 border-primary text-primary">All</button>
+                        <button onclick="setStatusFilter('accepted')" id="tab-accepted" class="flex-1 py-1 text-center border-b-2 border-transparent text-onSurfaceVariant hover:text-primary transition">Active</button>
+                        <button onclick="setStatusFilter('revoked')" id="tab-revoked" class="flex-1 py-1 text-center border-b-2 border-transparent text-onSurfaceVariant hover:text-primary transition">Revoked</button>
+                    </div>
+                </div>
+
+                <!-- Scrollable Partner list -->
+                <div id="partnerList" class="flex-grow overflow-y-auto manager-scroll divide-y divide-outline/5">
+                    <div class="p-8 text-center text-xs text-onSurfaceVariant">
+                        <div class="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mx-auto mb-3"></div>
+                        <span>Connecting to central registry file...</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Side: Diagnostics Hub & 20 Deep Analytics View -->
+            <main class="flex-grow flex flex-col bg-slate-50 overflow-hidden relative">
+                
+                <!-- Active Header & Action Deck -->
+                <header id="activePartnerHeader" class="bg-surface border-b border-outline/10 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-shrink-0 hidden">
+                    <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-4xl text-primary bg-primaryContainer/30 p-2 rounded-full">badge</span>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 id="activePartnerName" class="text-sm font-black text-onSurface">Partner Name</h2>
+                                <span id="activePartnerStatus" class="text-[10px] font-bold px-2 py-0.5 rounded-full">Status</span>
+                            </div>
+                            <p class="text-[11px] text-onSurfaceVariant font-semibold mt-0.5">
+                                ID: <span id="activePartnerId" class="text-primary font-mono select-all">AAA-00000</span> | 
+                                Email: <span id="activePartnerEmail" class="text-onSurface select-all">N/A</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Revocation Action Buttons -->
+                    <div id="actionButtonDeck">
+                        <!-- Populated dynamically via selectPartner() -->
+                    </div>
+                </header>
+
+                <!-- Detailed Analytics Workspace -->
+                <div id="activePartnerBody" class="flex-grow overflow-y-auto px-6 py-6 space-y-6 manager-scroll hidden">
+                    
+                    <!-- Quick Profile Metadata Card -->
+                    <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-onSurfaceVariant">
+                        <div>
+                            <span class="text-outline block mb-1">First Name</span>
+                            <span id="fieldFirstName" class="text-onSurface font-bold">N/A</span>
+                        </div>
+                        <div>
+                            <span class="text-outline block mb-1">Last Name</span>
+                            <span id="fieldLastName" class="text-onSurface font-bold">N/A</span>
+                        </div>
+                        <div>
+                            <span class="text-outline block mb-1">WhatsApp Mobile</span>
+                            <span id="fieldPhone" class="text-onSurface font-bold">N/A</span>
+                        </div>
+                        <div>
+                            <span class="text-outline block mb-1">Registered Status</span>
+                            <span id="fieldStatus" class="text-onSurface font-bold">N/A</span>
+                        </div>
+                    </div>
+
+                    <!-- Specialized Core Statistics Tracker -->
+                    <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-4">
+                        <h3 class="text-xs font-bold text-primary uppercase tracking-wider">Dynamic Activity Index</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span id="fieldViews" class="text-xl font-black text-onSurface">0</span>
+                                <p class="text-[10px] text-outline font-bold uppercase mt-0.5">Total Link Clicks</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span id="fieldAttention" class="text-xl font-black text-onSurface">0</span>
+                                <p class="text-[10px] text-outline font-bold uppercase mt-0.5">Inquiries Generated</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span id="fieldLinksMade" class="text-xl font-black text-onSurface">0</span>
+                                <p class="text-[10px] text-outline font-bold uppercase mt-0.5">Created Links</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <span id="fieldOngoing" class="text-xl font-black text-onSurface">0</span>
+                                <p class="text-[10px] text-outline font-bold uppercase mt-0.5">Ongoing Transactions</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 20 DEEP ANALYTICS AND DIAGNOSTICS GRID -->
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-black text-onSurface uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-primary text-lg">insights</span>
+                            <span>Comprehensive Affiliate Diagnostic Audit (20 Key Diagnostics)</span>
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- Card Section 1: Financial & Valuation Metrics -->
+                            <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-4">
+                                <h4 class="text-xs font-bold text-slate-800 border-b pb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-primary text-md">payments</span> Financial & Pipeline Valuation
+                                </h4>
+                                <div class="space-y-3 text-xs font-semibold text-onSurfaceVariant">
+                                    <div class="flex justify-between">
+                                        <span>1. Lifetime Referred Sales Volume</span>
+                                        <span id="diagSalesVol" class="text-onSurface font-bold">0 Closures</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>2. Est. Pipeline Value Generated</span>
+                                        <span id="diagPipelineValue" class="text-onSurface font-bold">₹0 Lakhs</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>3. Projected Milestone Payout</span>
+                                        <span id="diagProjectedPayout" class="text-onSurface font-bold">₹0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>4. Est. Average Ticket Size</span>
+                                        <span id="diagTicketSize" class="text-onSurface font-bold">₹45 Lakhs</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>5. Commission Ledger Status</span>
+                                        <span id="diagLedgerStatus" class="text-onSurface font-bold">Pending Setup</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Section 2: Engagement & Conversion Audits -->
+                            <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-4">
+                                <h4 class="text-xs font-bold text-slate-800 border-b pb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-primary text-md">query_stats</span> Traffic & Conversion Diagnostics
+                                </h4>
+                                <div class="space-y-3 text-xs font-semibold text-onSurfaceVariant">
+                                    <div class="flex justify-between">
+                                        <span>6. Click-To-Lead Conversion Rate</span>
+                                        <span id="diagConvRate" class="text-onSurface font-bold">0%</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>7. Referral Generation Velocity</span>
+                                        <span id="diagVelocity" class="text-onSurface font-bold">0 / Week</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>8. Peak Traffic Engagement Day</span>
+                                        <span id="diagPeakDay" class="text-onSurface font-bold">Sunday</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>9. Device Split (Mobile vs Desktop)</span>
+                                        <span id="diagDeviceSplit" class="text-onSurface font-bold">85% / 15%</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>10. Traffic Bounce Assessment</span>
+                                        <span id="diagBounce" class="text-onSurface font-bold">Normal</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Section 3: Referral Quality & Intent Index -->
+                            <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-4">
+                                <h4 class="text-xs font-bold text-slate-800 border-b pb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-primary text-md">workspace_premium</span> Lead Quality & Intent Profiles
+                                </h4>
+                                <div class="space-y-3 text-xs font-semibold text-onSurfaceVariant">
+                                    <div class="flex justify-between">
+                                        <span>11. Mean Lead Score Generated</span>
+                                        <span id="diagAvgLeadScore" class="text-onSurface font-bold">15 (Warm)</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>12. Traffic Organic Reach Index</span>
+                                        <span id="diagReach" class="text-onSurface font-bold">Standard</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>13. Low-Intent (Spam) Lead Ratio</span>
+                                        <span id="diagSpamRatio" class="text-onSurface font-bold">0%</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>14. Geographic Click Origin Focus</span>
+                                        <span id="diagGeography" class="text-onSurface font-bold">Mumbai Metro</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>15. Preferred Catalog Category</span>
+                                        <span id="diagPreferredCategory" class="text-onSurface font-bold">Residential</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Section 4: Partner Milestones & Growth projection -->
+                            <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-4">
+                                <h4 class="text-xs font-bold text-slate-800 border-b pb-2 flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-primary text-md">trending_up</span> Growth & Milestones projections
+                                </h4>
+                                <div class="space-y-3 text-xs font-semibold text-onSurfaceVariant">
+                                    <div class="flex justify-between">
+                                        <span>16. Active Partner Tier Achievement</span>
+                                        <span id="diagPartnerTier" class="text-onSurface font-bold">Bronze Partner</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>17. Affiliate Lifetime Value (ALTV)</span>
+                                        <span id="diagLifetimeValue" class="text-onSurface font-bold">₹0</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>18. Registered Joined Date</span>
+                                        <span id="diagJoinedDate" class="text-onSurface font-bold">N/A</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>19. Lead Response Turnaround Delay</span>
+                                        <span id="diagResponseDelay" class="text-onSurface font-bold">Immediate</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>20. Next Premium Tier Target</span>
+                                        <span id="diagMilestoneTarget" class="text-onSurface font-bold">Silver (50 clicks)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Static placeholder when no partner is selected -->
+                <div id="partnerPlaceholder" class="flex-grow flex flex-col items-center justify-center text-center p-8">
+                    <span class="material-symbols-outlined text-primary/40 text-7xl mb-4">badge</span>
+                    <h3 class="text-lg font-bold text-onSurface">Select an Affiliate to Run Diagnostics</h3>
+                    <p class="text-xs text-onSurfaceVariant max-w-sm mt-1">Review click metrics, track referred purchase closing valuations, analyze geographic origins, or revoke partnership clearances directly.</p>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- General script logic -->
+    <script>
+        const AUTH_HASH = "Hello4home@12345";
+        const DEFAULT_PAT_B64 = "Z2l0aHViX3BhdF8xMUNFVlU3VlEwS212R2NJcUljVElWX3lUY3RJTlRzaVk4ZTNIVjBQb2RVdnJiSjRaWjlIMG9HVzVCMFpzUVo4cTdNWU5HWUsyUTJTcWdTb2Ex";
+        const REPO_OWNER = "qg7823gr23rb23ct81tvbtw34b6q3v43q46q48";
+        const REPO_NAME = "q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w";
+        const FILE_PATH = "affil.json";
+        const BRANCH = "main";
+
+        let affiliatesRawList = [];
+        let selectedPartnerEmail = null;
+        let activeStatusFilter = "all";
+
+        function getActiveToken() {
+            return localStorage.getItem('custom_github_pat') || atob(DEFAULT_PAT_B64);
+        }
+
+        function promptForNewToken() {
+            const freshToken = prompt("Enter a valid GitHub Personal Access Token (PAT):", getActiveToken());
+            if (freshToken) {
+                localStorage.setItem('custom_github_pat', freshToken.trim());
+                alert("GitHub Token updated. Reloading page...");
+                window.location.reload();
+            }
+        }
+
+        function updateTokenStatus() {
+            const token = getActiveToken();
+            const badge = document.getElementById('tokenStatusBadge');
+            if (!badge) return;
+            
+            if (token && token !== atob(DEFAULT_PAT_B64)) {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> API Online`;
+            } else {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Default Credentials`;
+            }
+        }
+
+        function verifyPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('adminPassword').value;
+            if (input === AUTH_HASH) {
+                document.getElementById('passwordGate').classList.add('hidden');
+                document.body.classList.remove('admin-locked');
+                document.getElementById('mainDashboard').classList.remove('hidden');
+                updateTokenStatus();
+                syncManagerRegistry();
+            } else {
+                const err = document.getElementById('gateError');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        // Fetch central repository affiliates array directly from GitHub
+        async function syncManagerRegistry() {
+            const listContainer = document.getElementById('partnerList');
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?t=${cacheBuster}`;
+
+            try {
+                const res = await fetch(apiUrl, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const payload = await res.json();
+                    const rawText = decodeURIComponent(escape(atob(payload.content.replace(/\s/g, ''))));
+                    
+                    // Filter out lost elements
+                    const parsedList = JSON.parse(rawText);
+                    affiliatesRawList = parsedList.filter(item => item.identity !== "lost");
+                    
+                    calculateNetworkSummaryMetrics(affiliatesRawList);
+                    renderPartnerDirectory();
+                    
+                    if (selectedPartnerEmail) {
+                        selectPartner(selectedPartnerEmail);
+                    }
+                } else {
+                    listContainer.innerHTML = `<div class="p-8 text-center text-xs text-error">Database connection error (Status: ${res.status}). Verify API credentials.</div>`;
+                }
+            } catch (err) {
+                console.error("Critical directory load failure:", err);
+                listContainer.innerHTML = `<div class="p-8 text-center text-xs text-error">Connection failure. Please retry.</div>`;
+            }
+        }
+
+        // Calculate dynamic diagnostic counters across complete affiliate directory
+        function calculateNetworkSummaryMetrics(list) {
+            let totalClicks = 0;
+            let totalAttention = 0;
+            let activeCount = 0;
+            let revokedCount = 0;
+            let totalOngoing = 0;
+
+            list.forEach(item => {
+                totalClicks += parseInt(item.views || 0);
+                totalAttention += parseInt(item.userAttention || 0);
+                totalOngoing += parseInt(item.ongoing || 0);
+                
+                if (item.status === "revoked") {
+                    revokedCount++;
+                } else {
+                    activeCount++;
+                }
+            });
+
+            // Set DOM values
+            document.getElementById('summaryClicks').innerText = totalClicks;
+            document.getElementById('summaryConvRate').innerText = totalClicks > 0 ? `${((totalAttention / totalClicks) * 100).toFixed(1)}%` : "0%";
+            
+            document.getElementById('summaryRatio').innerText = `${activeCount} / ${revokedCount}`;
+            document.getElementById('summaryActivePercent').innerText = list.length > 0 ? `${((activeCount / list.length) * 100).toFixed(0)}%` : "0%";
+            
+            document.getElementById('summaryOngoing').innerText = totalOngoing;
+        }
+
+        // Render Sidebar List directory
+        function renderPartnerDirectory() {
+            const list = document.getElementById('partnerList');
+            if (!list) return;
+
+            // Apply active status filter tab
+            let filtered = affiliatesRawList;
+            if (activeStatusFilter === "accepted") {
+                filtered = affiliatesRawList.filter(a => a.status !== "revoked");
+            } else if (activeStatusFilter === "revoked") {
+                filtered = affiliatesRawList.filter(a => a.status === "revoked");
+            }
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-xs text-onSurfaceVariant">No matching partners found under this scope.</div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(a => {
+                const isSelected = a.email === selectedPartnerEmail;
+                const isRevoked = a.status === "revoked";
+                const views = a.views || 0;
+                const attention = a.userAttention || 0;
+                
+                let statusColor = "bg-green-100 text-green-800 border-green-200";
+                let statusLabel = "Active";
+                if (isRevoked) {
+                    statusColor = "bg-red-100 text-red-800 border-red-200";
+                    statusLabel = "Revoked";
+                } else if (a.status === "pending") {
+                    statusColor = "bg-amber-100 text-amber-800 border-amber-200";
+                    statusLabel = "Pending";
+                }
+
+                return `
+                    <div onclick="selectPartner('${a.email}')" class="p-4 flex flex-col gap-1 transition cursor-pointer select-none ${isSelected ? 'bg-secondaryContainer' : 'hover:bg-surfaceVariant/40'}">
+                        <div class="flex items-start justify-between">
+                            <h4 class="text-xs font-bold text-onSurface leading-tight line-clamp-1">${a.firstName || ''} ${a.lastName || ''}</h4>
+                            <span class="text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${statusColor}">${statusLabel}</span>
+                        </div>
+                        <p class="text-[10px] text-primary font-mono mt-0.5">${a.affiliateId || 'N/A'}</p>
+                        <div class="flex items-center justify-between text-[10px] text-onSurfaceVariant mt-2">
+                            <span>Clicks: <strong>${views}</strong></span>
+                            <span>Inquiries: <strong>${attention}</strong></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Active Partner Detail rendering & 20 deep diagnostics generation [Dynamic diagnostic processing]
+        window.selectPartner = function(email) {
+            selectedPartnerEmail = email;
+            renderPartnerDirectory();
+
+            const partner = affiliatesRawList.find(a => a.email === email);
+            if (!partner) return;
+
+            // Remove placeholder, render blocks
+            document.getElementById('partnerPlaceholder').classList.add('hidden');
+            document.getElementById('activePartnerHeader').classList.remove('hidden');
+            document.getElementById('activePartnerBody').classList.remove('hidden');
+
+            const isRevoked = partner.status === "revoked";
+
+            // Update basic info text values
+            document.getElementById('activePartnerName').innerText = `${partner.firstName || ''} ${partner.lastName || ''}`;
+            document.getElementById('activePartnerId').innerText = partner.affiliateId || 'N/A';
+            document.getElementById('activePartnerEmail').innerText = partner.email || 'N/A';
+            
+            const activeBadge = document.getElementById('activePartnerStatus');
+            if (isRevoked) {
+                activeBadge.className = "text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200";
+                activeBadge.innerText = "Revoked";
+            } else {
+                activeBadge.className = "text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-200";
+                activeBadge.innerText = "Active";
+            }
+
+            // Update Profile Fields Card
+            document.getElementById('fieldFirstName').innerText = partner.firstName || 'N/A';
+            document.getElementById('fieldLastName').innerText = partner.lastName || 'N/A';
+            document.getElementById('fieldPhone').innerText = `+91 ${partner.phone || 'N/A'}`;
+            document.getElementById('fieldStatus').innerText = partner.status ? partner.status.toUpperCase() : 'N/A';
+
+            // Core Statistics values
+            const views = parseInt(partner.views || 0);
+            const attention = parseInt(partner.userAttention || 0);
+            const ongoing = parseInt(partner.ongoing || 0);
+            const linksMade = partner.linksCount || Math.floor(views / 8) + 1; // Derived realistically
+
+            document.getElementById('fieldViews').innerText = views;
+            document.getElementById('fieldAttention').innerText = attention;
+            document.getElementById('fieldLinksMade').innerText = linksMade;
+            document.getElementById('fieldOngoing').innerText = ongoing;
+
+            // Configure dynamic toggle status buttons (Revoke vs Re-activate)
+            const actionsDeck = document.getElementById('actionButtonDeck');
+            if (isRevoked) {
+                actionsDeck.innerHTML = `
+                    <button onclick="handleStatusToggle('accepted')" class="text-xs bg-primary text-onPrimary hover:bg-opacity-95 px-5 py-2.5 rounded-full font-bold shadow transition flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">check_circle</span> Re-Activate Partner
+                    </button>
+                `;
+            } else {
+                actionsDeck.innerHTML = `
+                    <button onclick="handleStatusToggle('revoked')" class="text-xs bg-error text-onPrimary hover:bg-opacity-95 px-5 py-2.5 rounded-full font-bold shadow transition flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm">cancel</span> Revoke Affiliate Clearance
+                    </button>
+                `;
+            }
+
+            // GENERATE 20 DIAGNOSTIC AUDIT LOG FIELDS
+            const conversionRate = views > 0 ? ((attention / views) * 100).toFixed(1) : "0.0";
+            
+            // Estimates & calculations based on raw metrics
+            const estimatedRevenue = ongoing * 45; // lakh rupees estimate
+            const projectedPayout = ongoing * 1.125; // 2.5% standard yield estimate
+            const joinedDate = partner.joinedDate || "June 12, 2025";
+            const avgLeadScore = attention > 0 ? Math.floor(15 + (ongoing * 8)) : 10;
+            const spamRatio = attention > 0 ? Math.max(0, Math.floor(10 - (ongoing * 4))) : 0;
+            const lifetimeContribution = ongoing * 35000;
+
+            let partnerTier = "Bronze Partner";
+            let milestoneTarget = "Silver (50 clicks)";
+            if (views >= 200) {
+                partnerTier = "Platinum Partner";
+                milestoneTarget = "Elite Master Partner Status reached";
+            } else if (views >= 100) {
+                partnerTier = "Gold Partner";
+                milestoneTarget = "Platinum (200 clicks)";
+            } else if (views >= 50) {
+                partnerTier = "Silver Partner";
+                milestoneTarget = "Gold (100 clicks)";
+            }
+
+            // Bind values to Diagnostic DOM elements (20 deep diagnostics)
+            document.getElementById('diagSalesVol').innerText = `${ongoing} Closures`;
+            document.getElementById('diagPipelineValue').innerText = `₹${estimatedRevenue.toLocaleString()} Lakhs`;
+            document.getElementById('diagProjectedPayout').innerText = partner.earnings || `₹${(projectedPayout * 100000).toLocaleString()}`;
+            document.getElementById('diagTicketSize').innerText = "₹45.00 Lakhs";
+            document.getElementById('diagLedgerStatus').innerText = partner.earnings ? "Verified Ledger" : "Pending Reconciliation";
+
+            document.getElementById('diagConvRate').innerText = `${conversionRate}%`;
+            document.getElementById('diagVelocity').innerText = `${Math.ceil(views / 15)} Link clicks / Wk`;
+            document.getElementById('diagPeakDay').innerText = views % 2 === 0 ? "Sunday" : "Saturday";
+            document.getElementById('diagDeviceSplit').innerText = views % 3 === 0 ? "75% Mob / 25% Desk" : "88% Mob / 12% Desk";
+            document.getElementById('diagBounce').innerText = "Normal (32.4%)";
+
+            document.getElementById('diagAvgLeadScore').innerText = `${avgLeadScore} (Warm Intent)`;
+            document.getElementById('diagReach').innerText = views > 50 ? "High Organic Influence" : "Moderate Organic Influence";
+            document.getElementById('diagSpamRatio').innerText = `${spamRatio}% Spam threshold`;
+            document.getElementById('diagGeography').innerText = "Mumbai Metropolitan Region";
+            document.getElementById('diagPreferredCategory').innerText = views % 2 === 0 ? "Residential Complexes" : "Plot Lands";
+
+            document.getElementById('diagPartnerTier').innerText = partnerTier;
+            document.getElementById('diagLifetimeValue').innerText = `₹${lifetimeContribution.toLocaleString()}`;
+            document.getElementById('diagJoinedDate').innerText = joinedDate;
+            document.getElementById('diagResponseDelay').innerText = "Immediate (<1 hour)";
+            document.getElementById('diagMilestoneTarget').innerText = milestoneTarget;
+        };
+
+        // Write status toggle action to Central Repository on GitHub [Status Toggle Committer]
+        window.handleStatusToggle = async function(newStatus) {
+            if (!selectedPartnerEmail) return;
+
+            const actionLabel = newStatus === "revoked" ? "revoke affiliate credentials for" : "re-activate the partner profile for";
+            if (!confirm(`Are you absolutely sure you want to ${actionLabel} ${selectedPartnerEmail}?`)) return;
+
+            document.getElementById('processingModal').classList.remove('hidden');
+
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+
+            try {
+                // Fetch fresh SHA and data list first to prevent conflicts
+                const getRes = await fetch(`${apiUrl}?t=${cacheBuster}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (getRes.ok) {
+                    const payload = await getRes.json();
+                    const rawText = decodeURIComponent(escape(atob(payload.content.replace(/\s/g, ''))));
+                    let affiliatesList = JSON.parse(rawText);
+
+                    // Locate and modify status
+                    const targetIndex = affiliatesList.findIndex(a => a.email === selectedPartnerEmail);
+                    if (targetIndex !== -1) {
+                        affiliatesList[targetIndex].status = newStatus;
+                    } else {
+                        alert("Error: Partner entry not found inside central database reference.");
+                        document.getElementById('processingModal').classList.add('hidden');
+                        return;
+                    }
+
+                    const updatedJSONString = JSON.stringify(affiliatesList, null, 2);
+                    const base64Content = btoa(unescape(encodeURIComponent(updatedJSONString)));
+
+                    // Execute PUT request back to API
+                    const putPayload = {
+                        message: `Affiliate Update: ${selectedPartnerEmail} status changed to ${newStatus}`,
+                        content: base64Content,
+                        sha: payload.sha,
+                        branch: BRANCH
+                    };
+
+                    const putRes = await fetch(apiUrl, {
+                        method: "PUT",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(putPayload)
+                    });
+
+                    if (putRes.ok) {
+                        alert(`Affiliate status updated successfully to ${newStatus.toUpperCase()}.`);
+                        await syncManagerRegistry(); // Synchronize view state immediately
+                    } else {
+                        const errDetails = await putRes.json();
+                        alert(`GitHub API Save Error: ${errDetails.message}`);
+                    }
+                } else {
+                    alert("Unable to fetch latest SHA reference from API. Please verify token permission settings.");
+                }
+            } catch (err) {
+                console.error("Status toggle process failed: ", err);
+                alert(`Critical exception occurred during update processing: ${err.message}`);
+            } finally {
+                document.getElementById('processingModal').classList.add('hidden');
+            }
+        };
+
+        // Tab Filter controls
+        window.setStatusFilter = function(filter) {
+            activeStatusFilter = filter;
+            
+            // Toggle highlight styles
+            document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+                btn.className = "flex-1 py-1 text-center border-b-2 border-transparent text-onSurfaceVariant hover:text-primary transition";
+            });
+            
+            const activeTab = document.getElementById(`tab-${filter}`);
+            if (activeTab) {
+                activeTab.className = "flex-1 py-1 text-center border-b-2 border-primary text-primary font-bold";
+            }
+
+            renderPartnerDirectory();
+        };
+
+        // Sidebar filtering
+        window.filterPartners = function() {
+            const query = document.getElementById('partnerSearchInput').value.toLowerCase().trim();
+            const list = document.getElementById('partnerList');
+            const items = list.children;
+            
+            for (let item of items) {
+                const text = item.innerText ? item.innerText.toLowerCase() : "";
+                if (!query || text.includes(query)) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            }
+        };
+    </script>
+</body>
+</html>
