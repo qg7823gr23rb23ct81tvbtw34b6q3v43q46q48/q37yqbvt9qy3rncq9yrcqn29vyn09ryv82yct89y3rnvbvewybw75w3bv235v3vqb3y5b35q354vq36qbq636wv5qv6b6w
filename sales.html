@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosify - Sales Manager</title>
+
+    <!-- Tailwind CSS (Material 3 Theme Palette) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6750A4',
+                        onPrimary: '#FFFFFF',
+                        primaryContainer: '#EADDFF',
+                        onPrimaryContainer: '#21005D',
+                        surface: '#FEF7FF',
+                        surfaceVariant: '#E7E0EC',
+                        onSurface: '#1D1B20',
+                        onSurfaceVariant: '#49454F',
+                        outline: '#79747E',
+                        secondaryContainer: '#E8DEF8',
+                        error: '#B3261E'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts, Material Symbols, Chart.js & ZIP Compilation CDNs -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #FEF7FF;
+        }
+        .admin-locked {
+            overflow: hidden;
+            height: 100vh;
+        }
+        /* Custom scrollbar */
+        .sales-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sales-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sales-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printArea, #printArea * {
+                visibility: visible;
+            }
+        }
+    </style>
+</head>
+<body class="admin-locked text-onSurface flex flex-col h-screen">
+
+    <!-- Password Verification Gate -->
+    <div id="passwordGate" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-surface px-4 text-center">
+        <div class="max-w-md w-full bg-surfaceVariant p-8 rounded-[28px] shadow-sm border border-outline/10">
+            <span class="material-symbols-outlined text-primary text-5xl mb-4">lock</span>
+            <h2 class="text-2xl font-semibold mb-2 text-onSurface">Sales Gate Required</h2>
+            <p class="text-sm text-onSurfaceVariant mb-6">Enter admin credentials to access the Prosify Sales Manager.</p>
+            <form id="gateForm" onsubmit="verifyPassword(event)">
+                <div class="relative mb-4">
+                    <input type="password" id="adminPassword" placeholder="Enter Password" required
+                        class="w-full px-4 py-3 bg-surface border border-outline rounded-lg focus:outline-none focus:border-primary text-onSurface">
+                </div>
+                <button type="submit" 
+                    class="w-full bg-primary hover:bg-opacity-90 text-onPrimary font-medium py-3 rounded-full transition duration-200 shadow">
+                    Verify & Unlock
+                </button>
+                <p id="gateError" class="text-error text-xs mt-3 hidden">Incorrect credentials. Please try again.</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Processing Transaction Overlay Modal -->
+    <div id="processingModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden">
+        <div class="bg-surface p-8 rounded-[28px] shadow-xl text-center max-w-sm w-full">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+            <h3 id="processingModalTitle" class="text-lg font-bold mb-1">Processing Transaction</h3>
+            <p id="processingModalSubtitle" class="text-xs text-onSurfaceVariant">Writing transaction, compiling ledger packages...</p>
+        </div>
+    </div>
+
+    <!-- Active Sale Details Modal (Popup Workspace) -->
+    <div id="detailsPopupModal" class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4 hidden" onclick="closeDetailsPopup()">
+        <div class="bg-surface max-w-lg w-full rounded-[28px] overflow-hidden shadow-2xl p-6 sm:p-8 flex flex-col gap-6" onclick="event.stopPropagation()">
+            
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between border-b pb-3">
+                <div>
+                    <h3 class="text-md font-bold text-onSurface leading-tight">Sale Transaction Details</h3>
+                    <p class="text-[10px] text-onSurfaceVariant mt-0.5 font-mono select-all" id="popupSaleId">ID: N/A</p>
+                </div>
+                <button onclick="closeDetailsPopup()" class="text-onSurfaceVariant hover:text-onSurface">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Content Grid -->
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2 sales-scroll text-xs font-semibold text-onSurfaceVariant">
+                
+                <!-- Client Details -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                    <h4 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Referred Buyer</h4>
+                    <p class="text-slate-800 font-bold" id="popupBuyerName">N/A</p>
+                    <p class="text-[11px] mt-0.5" id="popupBuyerContact">N/A</p>
+                </div>
+
+                <!-- Property details -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                    <h4 class="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Referred Property</h4>
+                    <p class="text-slate-800 font-bold" id="popupProjName">N/A</p>
+                    <p class="text-[11px] mt-0.5" id="popupProjPrice">N/A</p>
+                </div>
+
+                <!-- Referrer details -->
+                <div class="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-100 hidden" id="popupReferrerBlock">
+                    <h4 class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-2">Commission Referral Summary</h4>
+                    <p class="text-slate-800 font-bold" id="popupReferrerName">N/A</p>
+                    <p class="text-[11px] mt-0.5" id="popupReferrerEarnings">N/A</p>
+                </div>
+
+                <!-- Status Update dropdown -->
+                <div class="space-y-2 border-t pt-3">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Update Sale Status</label>
+                    <select id="popupStatusSelect" class="w-full bg-surfaceVariant border border-outline/10 rounded-xl py-2.5 px-4 text-xs font-bold focus:outline-none">
+                        <option value="Pending">Pending</option>
+                        <option value="Pending Payment">Pending Payment</option>
+                        <option value="Need to send brochures">Need to send brochures</option>
+                        <option value="Done Payment">Done Payment (Archive)</option>
+                        <option value="Success">Success (Archive)</option>
+                        <option value="Sale Cancelled">Sale Cancelled (Archive/Lost)</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- Actions row -->
+            <div class="flex gap-3 border-t pt-4">
+                <button onclick="downloadSaleZipTrigger()" class="flex-1 py-3 rounded-full border border-outline text-xs font-bold hover:bg-slate-50 transition flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">download</span> Download Details (.ZIP)
+                </button>
+                <button onclick="commitSaleStatusUpdate()" class="flex-1 py-3 rounded-full bg-primary text-onPrimary font-bold text-xs hover:bg-opacity-95 transition shadow">
+                    Update Status
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Main Workspace Dashboard Container -->
+    <div id="mainDashboard" class="hidden h-full flex flex-col overflow-hidden">
+        
+        <!-- Header Bar -->
+        <header class="bg-surface border-b border-outline/10 px-6 py-4 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-3xl">real_estate_agent</span>
+                <div>
+                    <h1 class="text-lg font-bold text-primary tracking-tight">Prosify Sales Manager</h1>
+                    <p class="text-xs text-onSurfaceVariant font-medium">Record property closing valuations, manage pipeline transactions, and process payouts</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="promptForNewToken()" class="text-xs text-primary hover:bg-primary/5 px-4 py-2 rounded-full border border-primary/20 transition font-bold">
+                    Configure Git Token
+                </button>
+                <span id="tokenStatusBadge" class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-error/10 text-error flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-error"></span> API Offline
+                </span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs Bar -->
+        <div class="bg-surface border-b border-outline/10 flex px-6 py-1 gap-4 flex-shrink-0">
+            <button onclick="switchTab('active')" id="tabBtn-active" class="py-3 px-1 border-b-2 border-primary text-xs font-bold text-primary flex items-center gap-1.5 uppercase">
+                <span class="material-symbols-outlined text-sm">list_alt</span> Active Sales
+            </button>
+            <button onclick="switchTab('history')" id="tabBtn-history" class="py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase">
+                <span class="material-symbols-outlined text-sm">history</span> History Archive
+            </button>
+            <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase">
+                <span class="material-symbols-outlined text-sm">monitoring</span> Analytics Dashboard
+            </button>
+            <button onclick="switchTab('wizard')" id="tabBtn-wizard" class="py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase">
+                <span class="material-symbols-outlined text-sm">add_circle</span> Record New Sale
+            </button>
+        </div>
+
+        <!-- Initial Fullscreen Loading Screen -->
+        <div id="initialSalesLoader" class="flex-grow flex flex-col items-center justify-center text-center p-12 bg-slate-50/50">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
+            <p class="text-xs text-onSurfaceVariant font-bold">Retrieving closing valuations & pipelines...</p>
+        </div>
+
+        <!-- Scrollable Workspace views -->
+        <div id="salesWorkspaceWrapper" class="hidden flex-grow overflow-hidden relative bg-slate-50">
+            
+            <!-- VIEW A: Active Sales Timeline -->
+            <div id="viewPane-active" class="h-full overflow-y-auto px-6 py-6 space-y-4 sales-scroll">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- VIEW B: Closed Sales / History Archive -->
+            <div id="viewPane-history" class="h-full overflow-y-auto px-6 py-6 space-y-4 sales-scroll hidden">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- VIEW C: Analytics Dashboard -->
+            <div id="viewPane-analytics" class="h-full overflow-y-auto px-6 py-6 space-y-6 sales-scroll hidden">
+                <!-- Analytics Summary cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-3xl p-5 border border-outline/10 shadow-sm">
+                        <span id="analyticTotalRevenue" class="text-xl font-black text-slate-900">₹0</span>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Converted Revenue</p>
+                    </div>
+                    <div class="bg-white rounded-3xl p-5 border border-outline/10 shadow-sm">
+                        <span id="analyticActivePipeline" class="text-xl font-black text-primary">₹0</span>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Active Pipeline Value</p>
+                    </div>
+                    <div class="bg-white rounded-3xl p-5 border border-outline/10 shadow-sm">
+                        <span id="analyticLostRevenue" class="text-xl font-black text-red-600">₹0</span>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Lost Sales Valuations</p>
+                    </div>
+                    <div class="bg-white rounded-3xl p-5 border border-outline/10 shadow-sm">
+                        <span id="analyticCancellationsCount" class="text-xl font-black text-red-600">0</span>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Cancellations count</p>
+                    </div>
+                </div>
+
+                <!-- Visual Charts grids -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-2">
+                        <h4 class="text-xs font-bold text-slate-950 uppercase tracking-wider">Revenue Timeline (By Date)</h4>
+                        <div class="relative h-64 w-full">
+                            <canvas id="revenueTimelineChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 border border-outline/10 shadow-sm space-y-2">
+                        <h4 class="text-xs font-bold text-slate-950 uppercase tracking-wider">Lead Funnel Distribution</h4>
+                        <div class="relative h-64 w-full flex items-center justify-center">
+                            <canvas id="statusDistributionChart" style="max-height: 240px; max-width: 240px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW D: Sale compilation Form Wizard -->
+            <div id="viewPane-wizard" class="h-full overflow-y-auto px-6 py-6 sales-scroll hidden">
+                <div class="max-w-xl mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-outline/10 shadow-sm space-y-6">
+                    <h2 class="text-md font-bold text-slate-900 border-b pb-3 uppercase tracking-wider">Sale Compilation Form</h2>
+                    
+                    <form id="saleForm" onsubmit="event.preventDefault();" class="space-y-4">
+                        
+                        <!-- Step 1: Select Buyer -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase">Select Buyer</label>
+                            <select id="buyerSourceSelect" onchange="toggleBuyerSource()" class="w-full bg-surfaceVariant border border-outline/10 rounded-xl py-2.5 px-4 text-xs focus:outline-none">
+                                <option value="chat">Choose from active chats</option>
+                                <option value="custom">Enter custom buyer details</option>
+                            </select>
+                            
+                            <!-- Dropdown populated with active chats -->
+                            <div id="chatBuyerContainer">
+                                <select id="chatBuyerSelect" onchange="autoCheckChatReferral()" class="w-full bg-surfaceVariant border border-outline/10 rounded-xl py-2.5 px-4 text-xs focus:outline-none mt-2">
+                                    <option value="">-- Select Chat User --</option>
+                                </select>
+                            </div>
+
+                            <!-- Custom buyer inputs -->
+                            <div id="customBuyerContainer" class="grid grid-cols-2 gap-3 hidden mt-2">
+                                <input type="text" id="custFirstName" placeholder="First Name *" class="border border-outline/15 rounded-xl p-2.5 bg-transparent text-xs">
+                                <input type="text" id="custLastName" placeholder="Last Name *" class="border border-outline/15 rounded-xl p-2.5 bg-transparent text-xs">
+                                <input type="text" id="custPhone" placeholder="Phone (10 digits) *" class="border border-outline/15 rounded-xl p-2.5 bg-transparent text-xs col-span-2">
+                                <input type="email" id="custEmail" placeholder="Email Address *" class="border border-outline/15 rounded-xl p-2.5 bg-transparent text-xs col-span-2">
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Select Property -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase">Select Property</label>
+                            <select id="propertySelect" onchange="autoFillPropertyDetails()" class="w-full bg-surfaceVariant border border-outline/10 rounded-xl py-2.5 px-4 text-xs focus:outline-none">
+                                <option value="">-- Select Property Catalog --</option>
+                            </select>
+                            
+                            <!-- Property details row -->
+                            <div id="propertyDetailsRow" class="hidden bg-slate-50 p-4 border border-outline/10 rounded-2xl text-xs space-y-1">
+                                <p>Original Listed Base Price: <strong id="propBasePrice" class="text-onSurface font-bold">₹0</strong></p>
+                                <p>RERA ID: <span id="propReraId" class="text-primary font-bold">N/A</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Referral Verification logs (Regex matching) -->
+                        <div class="space-y-3 bg-emerald-50/20 p-4 border border-emerald-100 rounded-2xl relative">
+                            <h4 class="text-xs font-bold text-emerald-800 uppercase tracking-wide">Referral Check</h4>
+                            <div class="text-xs font-semibold text-onSurfaceVariant" id="referralStatusText">
+                                Direct Client (No active referral detected).
+                            </div>
+                            
+                            <!-- Custom referrer matching input -->
+                            <div id="customReferrerInputBlock" class="space-y-2 mt-2">
+                                <label class="block text-[10px] text-slate-400 uppercase font-bold">Affiliate Partner Code (Format: AAA-00000)</label>
+                                <input type="text" id="manualRefCodeInput" oninput="verifyAutomatedReferralCode(this.value)" placeholder="e.g. AAA-00000" class="w-full border border-outline/15 rounded-xl py-2.5 px-3 bg-transparent text-xs uppercase font-mono">
+                            </div>
+
+                            <!-- Financial input factors -->
+                            <div id="referralFinanceBlock" class="hidden space-y-3 pt-3 border-t border-emerald-100 text-xs font-semibold text-onSurfaceVariant">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-slate-500 uppercase mb-1">Customer Discount (₹) *</label>
+                                        <input type="number" id="saleDiscount" value="0" oninput="recalculateSaleFinances()" class="w-full border border-outline/15 rounded-xl p-2 bg-transparent">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-slate-500 uppercase mb-1">Partner Commission (%) *</label>
+                                        <input type="number" id="saleCommissionPct" value="2.5" oninput="recalculateSaleFinances()" class="w-full border border-outline/15 rounded-xl p-2 bg-transparent">
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center bg-white p-3 border border-emerald-100 rounded-xl">
+                                    <div>
+                                        <p class="text-[9px] uppercase text-slate-400">Final Price after discount</p>
+                                        <p class="text-xs font-black text-slate-900" id="calcFinalPrice">₹0</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-[9px] uppercase text-slate-400">Referred Partner Earnings</p>
+                                        <p class="text-xs font-black text-emerald-800" id="calcPartnerEarnings">₹0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Submission block -->
+                        <div class="pt-4 border-t">
+                            <button type="button" onclick="compileAndSubmitSale()" class="w-full bg-primary text-onPrimary hover:bg-opacity-95 font-bold uppercase tracking-widest py-3.5 rounded-full shadow-md transition">
+                                Compile & Create Sale
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Firebase System Module Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+        import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+
+        // Web App Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDneyB_Y2FWvNKZuzuprP0FSfr7EKJkIQ",
+            authDomain: "bc2r37b2y78.firebaseapp.com",
+            databaseURL: "https://bc2r37b2y78-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "bc2r37b2y78",
+            storageBucket: "bc2r37b2y78.firebasestorage.app",
+            messagingSenderId: "636563858750",
+            appId: "1:636563858750:web:39c96e81c74dbf8a1b386f",
+            measurementId: "G-W102P0G64G"
+        };
+
+        // Initialize Firebase instances
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Fetch active chats from Firebase to populate buyer selectors
+        window.loadActiveChatList = async function() {
+            try {
+                const chatSelect = document.getElementById('chatBuyerSelect');
+                chatSelect.innerHTML = `<option value="">-- Select Chat User --</option>`;
+
+                const dbRef = ref(db);
+                const snapshot = await get(child(dbRef, "chat_sessions"));
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.keys(data).forEach(key => {
+                        const meta = data[key].meta || {};
+                        if (meta.userName && meta.userPhone) {
+                            const option = document.createElement('option');
+                            option.value = key;
+                            option.text = `${meta.userName} (${meta.project || 'No Interest'}) - +91 ${meta.userPhone}`;
+                            // Store metadata inside HTML5 attributes for automated retrieval
+                            option.setAttribute('data-firstname', meta.userName.split(' ')[0] || '');
+                            option.setAttribute('data-lastname', meta.userName.split(' ').slice(1).join(' ') || '');
+                            option.setAttribute('data-phone', meta.userPhone || '');
+                            option.setAttribute('data-email', meta.userEmail || '');
+                            option.setAttribute('data-ref', meta.refCode || 'none');
+                            chatSelect.appendChild(option);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn("Unable to fetch active chats from Firebase database: ", err);
+            }
+        };
+    </script>
+
+    <!-- General Application script block -->
+    <script>
+        const AUTH_HASH = "Hello4home@12345";
+        const DEFAULT_PAT_B64 = "Z2l0aHViX3BhdF8xMUNFVlU3VlEwS212R2NJcUljVElWX3lUY3RJTlRzaVk4ZTNIVjBQb2RVdnJiSjRaWjlIMG9HVzVCMFpzUVo4cTdNWU5HWUsyUTJTcWdTb2Ex";
+        const REPO_OWNER = "qg7823gr23rb23ct81tvbtw34b6q3v43q46q48";
+        const REPO_NAME = "q37yqbvt9qy3rncq9yrcqn29vyn09ryv82yct89y3rnvbvewybw75w3bv235v3vqb3y5b35q354vq36qbq636wv5qv6b6w";
+        
+        const SALES_FILE = "sale.json";
+        const AFFIL_FILE = "affil.json";
+        const BRANCH = "main";
+
+        // Global cache state
+        let affiliatesRegistry = [];
+        let projectList = [];
+        let salesList = [];
+        let selectedActiveSaleObj = null;
+
+        let activeReferralFound = false;
+        let matchedReferrerPartner = null;
+
+        // Chart.js Chart Object References
+        let revenueChartInstance = null;
+        let funnelChartInstance = null;
+
+        function getActiveToken() {
+            return localStorage.getItem('custom_github_pat') || atob(DEFAULT_PAT_B64);
+        }
+
+        function promptForNewToken() {
+            const freshToken = prompt("Enter a valid GitHub Personal Access Token (PAT):", getActiveToken());
+            if (freshToken) {
+                localStorage.setItem('custom_github_pat', freshToken.trim());
+                alert("GitHub Token updated. Reloading page...");
+                window.location.reload();
+            }
+        }
+
+        function updateTokenStatus() {
+            const token = getActiveToken();
+            const badge = document.getElementById('tokenStatusBadge');
+            if (!badge) return;
+            
+            if (token && token !== atob(DEFAULT_PAT_B64)) {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span> API Online`;
+            } else {
+                badge.className = "text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Default Credentials`;
+            }
+        }
+
+        function verifyPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('adminPassword').value;
+            if (input === AUTH_HASH) {
+                document.getElementById('passwordGate').classList.add('hidden');
+                document.body.classList.remove('admin-locked');
+                document.getElementById('mainDashboard').classList.remove('hidden');
+                updateTokenStatus();
+                initSalesHub();
+            } else {
+                const err = document.getElementById('gateError');
+                err.classList.remove('hidden');
+                setTimeout(() => err.classList.add('hidden'), 3000);
+            }
+        }
+
+        // Initialize application loaders
+        async function initSalesHub() {
+            document.getElementById('initialSalesLoader').classList.remove('hidden');
+            document.getElementById('salesWorkspaceWrapper').classList.add('hidden');
+
+            await syncCentralAffiliates();
+            await syncCentralCatalog();
+            await syncSalesLedger();
+            
+            if (typeof window.loadActiveChatList === 'function') {
+                await window.loadActiveChatList();
+            }
+
+            document.getElementById('initialSalesLoader').classList.add('hidden');
+            document.getElementById('salesWorkspaceWrapper').classList.remove('hidden');
+        }
+
+        // Load affiliate database
+        async function syncCentralAffiliates() {
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${AFFIL_FILE}?t=${cacheBuster}`;
+            try {
+                const res = await fetch(apiUrl, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const rawText = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
+                    affiliatesRegistry = JSON.parse(rawText).filter(item => item.identity !== "lost");
+                }
+            } catch (err) {
+                console.warn("Unable to fetch central affiliate ledger reference: ", err);
+            }
+        }
+
+        // Load project catalog
+        async function syncCentralCatalog() {
+            const select = document.getElementById('propertySelect');
+            select.innerHTML = `<option value="">-- Select Property Catalog --</option>`;
+            projectList = [];
+            
+            try {
+                const res0 = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/landdata.json`);
+                if (res0.ok) {
+                    const data0 = await res0.json();
+                    if (Array.isArray(data0)) projectList = projectList.concat(data0);
+                }
+                
+                // Fetch other parallel shards
+                const promises = [1, 2, 3, 4, 5].map(idx => {
+                    return fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/landdata${idx}.json`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null);
+                });
+                
+                const results = await Promise.all(promises);
+                results.forEach(d => {
+                    if (d && Array.isArray(d)) projectList = projectList.concat(d);
+                });
+
+                projectList = projectList.filter(p => p.publish_status !== "Hidden");
+
+                // Populate selector dropdown
+                projectList.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.project_id || p.title.replace(/\s+/g, '_');
+                    opt.text = `${p.title} (${p.location?.city || 'N/A'})`;
+                    select.appendChild(opt);
+                });
+
+            } catch (err) {
+                console.warn("Property catalog load failed: ", err);
+            }
+        }
+
+        // Load sales log
+        async function syncSalesLedger() {
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${SALES_FILE}?t=${cacheBuster}`;
+            try {
+                const res = await fetch(apiUrl, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const rawText = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
+                    salesList = JSON.parse(rawText);
+                    
+                    renderSalesListings();
+                    renderAnalyticsDashboard();
+                } else if (res.status === 404) {
+                    // Create empty sales array if non-existent yet
+                    salesList = [];
+                    renderSalesListings();
+                    renderAnalyticsDashboard();
+                }
+            } catch (err) {
+                console.warn("Unable to establish connection with sales registry: ", err);
+            }
+        }
+
+        // Render listings divided across Active & Completed Tabs [Archiving lifecycle segmentation]
+        function renderSalesListings() {
+            const activePane = document.getElementById('viewPane-active');
+            const historyPane = document.getElementById('viewPane-history');
+
+            // Active list: excludes final success/done payment/cancelled states
+            const activeSales = salesList.filter(s => s.status !== "Success" && s.status !== "Done Payment" && s.status !== "Sale Cancelled");
+            // Closed list: includes success/done payment/cancelled states
+            const historySales = salesList.filter(s => s.status === "Success" || s.status === "Done Payment" || s.status === "Sale Cancelled");
+
+            const renderTemplate = (list) => {
+                if (list.length === 0) {
+                    return `
+                        <div class="flex flex-col items-center justify-center py-20 text-center">
+                            <span class="material-symbols-outlined text-primary/30 text-6xl mb-3">volunteer_activism</span>
+                            <h3 class="text-sm font-bold text-onSurface">No sales logs found</h3>
+                            <p class="text-xs text-onSurfaceVariant mt-1">Select the New Sale wizard tab above to compile transactions.</p>
+                        </div>
+                    `;
+                }
+
+                return list.map(s => {
+                    const isReferred = s.referral && s.referral.refCode !== "none";
+                    let statusColor = "bg-primary/10 text-primary border-primary/10";
+                    if (s.status === "Sale Cancelled") {
+                        statusColor = "bg-red-100 text-red-700 border-red-200";
+                    } else if (s.status === "Success" || s.status === "Done Payment") {
+                        statusColor = "bg-green-100 text-green-700 border-green-200";
+                    }
+
+                    return `
+                        <div onclick="openDetailsPopup('${s.sale_id}')" class="bg-white rounded-3xl p-5 border border-outline/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:shadow-md cursor-pointer select-none">
+                            <div class="flex items-start gap-4">
+                                <span class="material-symbols-outlined text-primary bg-primaryContainer/30 p-2.5 rounded-full text-2xl flex-shrink-0">receipt_long</span>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h4 class="text-xs font-black text-onSurface">${s.buyer.firstName} ${s.buyer.lastName}</h4>
+                                        <span class="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase ${statusColor}">${s.status}</span>
+                                    </div>
+                                    <p class="text-[10px] text-onSurfaceVariant font-bold mt-1">
+                                        Property: <span class="text-primary">${s.property.title}</span> | 
+                                        Value: <strong class="text-slate-800">₹ ${s.final_price.toLocaleString('en-IN')}</strong>
+                                    </p>
+                                    ${isReferred ? `
+                                        <p class="text-[9px] text-emerald-700 font-extrabold flex items-center gap-0.5 mt-1">
+                                            <span class="material-symbols-outlined text-sm">handshake</span> Referred by ID: ${s.referral.refCode}
+                                        </p>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-semibold sm:text-right flex-shrink-0 self-end sm:self-auto">
+                                <p>Transaction ID: <span class="font-mono">${s.sale_id}</span></p>
+                                <p class="mt-0.5">${new Date(s.timestamp).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            activePane.innerHTML = renderTemplate(activeSales);
+            historyPane.innerHTML = renderTemplate(historySales);
+        }
+
+        // Stepped Wizard UI Controls
+        window.toggleBuyerSource = function() {
+            const source = document.getElementById('buyerSourceSelect').value;
+            const chatBox = document.getElementById('chatBuyerContainer');
+            const customBox = document.getElementById('customBuyerContainer');
+
+            if (source === "chat") {
+                chatBox.classList.remove('hidden');
+                customBox.classList.add('hidden');
+                autoCheckChatReferral();
+            } else {
+                chatBox.classList.add('hidden');
+                customBox.classList.remove('hidden');
+                resetReferralState();
+            }
+        };
+
+        // Reset referral workspace
+        function resetReferralState() {
+            activeReferralFound = false;
+            matchedReferrerPartner = null;
+
+            document.getElementById('manualRefCodeInput').value = "";
+            document.getElementById('referralFinanceBlock').classList.add('hidden');
+            document.getElementById('referralStatusText').innerHTML = "Direct Client (No active referral detected).";
+            
+            recalculateSaleFinances();
+        }
+
+        // Auto check active referral on selected Chat channel
+        window.autoCheckChatReferral = function() {
+            const select = document.getElementById('chatBuyerSelect');
+            const selectedOpt = select.options[select.selectedIndex];
+            if (!selectedOpt || !selectedOpt.value) {
+                resetReferralState();
+                return;
+            }
+
+            const refCode = selectedOpt.getAttribute('data-ref');
+            verifyAutomatedReferralCode(refCode);
+        };
+
+        // Automated Referral matching and verification for strict format AAA-00000
+        window.verifyAutomatedReferralCode = function(rawCode) {
+            const formatted = rawCode.trim().toUpperCase();
+            const formatRegex = /^[A-Z]{3}-\d{5}$/;
+
+            if (!formatRegex.test(formatted)) {
+                // Instantly clean layout back to direct client if formatting breaks
+                resetReferralState();
+                document.getElementById('referralStatusText').innerHTML = "Direct Client (No active referral detected).";
+                return;
+            }
+
+            // Perform dynamic background search within synced database
+            const partner = affiliatesRegistry.find(a => a.affiliateId === formatted);
+            if (partner) {
+                activeReferralFound = true;
+                matchedReferrerPartner = partner;
+
+                document.getElementById('manualRefCodeInput').value = formatted; // Keep custom sync filled
+                document.getElementById('referralFinanceBlock').classList.remove('hidden');
+                document.getElementById('referralStatusText').innerHTML = `
+                    <div class="flex items-center gap-1.5 text-emerald-800 font-bold">
+                        <span class="material-symbols-outlined text-sm">verified_user</span>
+                        <span>Affiliate Verified: ${partner.firstName} ${partner.lastName} (${formatted})</span>
+                    </div>
+                `;
+                recalculateSaleFinances();
+            } else {
+                document.getElementById('referralStatusText').innerHTML = `
+                    <div class="flex items-center gap-1.5 text-red-600 font-bold">
+                        <span class="material-symbols-outlined text-sm">error</span>
+                        <span>Ref Code matches format but does not exist in network.</span>
+                    </div>
+                `;
+            }
+        };
+
+        // Autofill listing price fields
+        window.autoFillPropertyDetails = function() {
+            const select = document.getElementById('propertySelect');
+            const row = document.getElementById('propertyDetailsRow');
+            if (!select.value) {
+                row.classList.add('hidden');
+                return;
+            }
+
+            const proj = projectList.find(p => p.project_id === select.value || p.title.replace(/\s+/g, '_') === select.value);
+            if (proj) {
+                row.classList.remove('hidden');
+                document.getElementById('propBasePrice').innerText = proj.price_label || `₹ ${proj.price || 'N/A'}`;
+                document.getElementById('propReraId').innerText = proj.rera_id || 'Not Registered';
+            } else {
+                row.classList.add('hidden');
+            }
+            recalculateSaleFinances();
+        };
+
+        // Recalculate transaction financials [Calculates dynamic pricing and commission]
+        window.recalculateSaleFinances = function() {
+            const select = document.getElementById('propertySelect');
+            const proj = projectList.find(p => p.project_id === select.value || p.title.replace(/\s+/g, '_') === select.value);
+            
+            if (!proj || isNaN(proj.price)) {
+                document.getElementById('calcFinalPrice').innerText = "₹ 0";
+                document.getElementById('calcPartnerEarnings').innerText = "₹ 0";
+                return;
+            }
+
+            const basePrice = parseFloat(proj.price);
+            const discount = parseFloat(document.getElementById('saleDiscount').value) || 0;
+            const commPct = parseFloat(document.getElementById('saleCommissionPct').value) || 0;
+
+            const finalPrice = Math.max(0, basePrice - discount);
+            const partnerEarnings = (finalPrice * commPct) / 100;
+
+            document.getElementById('calcFinalPrice').innerText = `₹ ${finalPrice.toLocaleString('en-IN')}`;
+            document.getElementById('calcPartnerEarnings').innerText = `₹ ${partnerEarnings.toLocaleString('en-IN')}`;
+        };
+
+        // Compile and write transaction [Status Toggle Committer]
+        window.compileAndSubmitSale = async function() {
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            
+            // Collect Buyer
+            const buyerSource = document.getElementById('buyerSourceSelect').value;
+            let buyerObj = {};
+
+            if (buyerSource === "chat") {
+                const select = document.getElementById('chatBuyerSelect');
+                const selectedOpt = select.options[select.selectedIndex];
+                if (!selectedOpt || !selectedOpt.value) {
+                    alert("Please select an active chat client.");
+                    return;
+                }
+                buyerObj = {
+                    firstName: selectedOpt.getAttribute('data-firstname'),
+                    lastName: selectedOpt.getAttribute('data-lastname'),
+                    phone: selectedOpt.getAttribute('data-phone'),
+                    email: selectedOpt.getAttribute('data-email')
+                };
+            } else {
+                const fName = document.getElementById('custFirstName').value.trim();
+                const lName = document.getElementById('custLastName').value.trim();
+                const phone = document.getElementById('custPhone').value.trim();
+                const email = document.getElementById('custEmail').value.trim();
+
+                if (!fName || !lName || !phone || !email) {
+                    alert("Please satisfy all mandatory custom buyer fields.");
+                    return;
+                }
+                buyerObj = { firstName: fName, lastName: lName, phone, email };
+            }
+
+            // Collect Property
+            const propertyId = document.getElementById('propertySelect').value;
+            if (!propertyId) {
+                alert("Please select a referred property catalog entry.");
+                return;
+            }
+            const proj = projectList.find(p => p.project_id === propertyId || p.title.replace(/\s+/g, '_') === propertyId);
+
+            // Compute Pricing
+            const discount = activeReferralFound ? (parseFloat(document.getElementById('saleDiscount').value) || 0) : 0;
+            const finalPrice = activeReferralFound ? Math.max(0, parseFloat(proj.price) - discount) : parseFloat(proj.price);
+            const commPct = activeReferralFound ? (parseFloat(document.getElementById('saleCommissionPct').value) || 0) : 0;
+            const partnerEarnings = activeReferralFound ? ((finalPrice * commPct) / 100) : 0;
+
+            // Prepare Transaction Object
+            const uniqueSaleId = `sale_${Math.floor(100000 + Math.random() * 900000)}`;
+            const newSaleRecord = {
+                sale_id: uniqueSaleId,
+                timestamp: Date.now(),
+                status: "Pending",
+                buyer: buyerObj,
+                property: {
+                    project_id: proj.project_id || propertyId,
+                    title: proj.title,
+                    price: parseFloat(proj.price),
+                    rera_id: proj.rera_id || "",
+                    category: proj.category || "",
+                    header_image: proj.header_image || "",
+                    brochure: proj.brochure || "",
+                    location: proj.location || {}
+                },
+                discount: discount,
+                final_price: finalPrice,
+                referral: activeReferralFound ? {
+                    refCode: matchedReferrerPartner.affiliateId,
+                    referrerName: `${matchedReferrerPartner.firstName} ${matchedReferrerPartner.lastName}`,
+                    referrerEmail: matchedReferrerPartner.email,
+                    commissionValue: commPct,
+                    partnerEarnings: partnerEarnings
+                } : null
+            };
+
+            // Loading state
+            document.getElementById('processingModalTitle').innerText = "Recording Transaction";
+            document.getElementById('processingModalSubtitle').innerText = "Establishing bilateral ledger writes across shards...";
+            document.getElementById('processingModal').classList.remove('hidden');
+
+            try {
+                // Step A: Append Transaction to sale.json
+                const salesApiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${SALES_FILE}`;
+                let salesSha = null;
+                
+                const getSalesRes = await fetch(`${salesApiUrl}?t=${cacheBuster}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (getSalesRes.ok) {
+                    const salesPayload = await getSalesRes.json();
+                    salesSha = salesPayload.sha;
+                    const rawSalesText = decodeURIComponent(escape(atob(salesPayload.content.replace(/\s/g, ''))));
+                    salesList = JSON.parse(rawSalesText);
+                } else {
+                    salesList = [];
+                }
+
+                salesList.push(newSaleRecord);
+                
+                const updatedSalesJSON = JSON.stringify(salesList, null, 2);
+                const salesBase64 = btoa(unescape(encodeURIComponent(updatedSalesJSON)));
+
+                const putSalesPayload = {
+                    message: `Admin Transaction: Record new sale ID ${uniqueSaleId}`,
+                    content: salesBase64,
+                    branch: BRANCH
+                };
+                if (salesSha) putSalesPayload.sha = salesSha;
+
+                const putSalesRes = await fetch(salesApiUrl, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(putSalesPayload)
+                });
+
+                if (!putSalesRes.ok) {
+                    alert("Error: Unable to save sales log.");
+                    document.getElementById('processingModal').classList.add('hidden');
+                    return;
+                }
+
+                // Step B: If referral is matched, update affil.json [Bilateral Affiliate Wallet Sync]
+                if (activeReferralFound && matchedReferrerPartner) {
+                    document.getElementById('processingModalSubtitle').innerText = `Incrementing Affiliate Ongoing Ledger for ID: ${matchedReferrerPartner.affiliateId}...`;
+                    
+                    const affilApiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${AFFIL_FILE}`;
+                    const getAffilRes = await fetch(`${affilApiUrl}?t=${cacheBuster}`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+
+                    if (getAffilRes.ok) {
+                        const affilPayload = await getAffilRes.json();
+                        const rawAffilText = decodeURIComponent(escape(atob(affilPayload.content.replace(/\s/g, ''))));
+                        let affilList = JSON.parse(rawAffilText);
+
+                        const targetIdx = affilList.findIndex(a => a.email === matchedReferrerPartner.email);
+                        if (targetIdx !== -1) {
+                            // Update ongoing count
+                            let currentOngoing = parseInt(affilList[targetIdx].ongoing || 0);
+                            affilList[targetIdx].ongoing = currentOngoing + 1;
+
+                            // Update earnings (clean currencies, sum, write back)
+                            let curEarningsText = affilList[targetIdx].earnings ? affilList[targetIdx].earnings.replace(/[^0-9.]/g, '') : "0";
+                            let curEarningsFloat = parseFloat(curEarningsText) || 0;
+                            let newEarningsFloat = curEarningsFloat + partnerEarnings;
+
+                            affilList[targetIdx].earnings = `₹${newEarningsFloat.toLocaleString('en-IN')}`;
+                            affilList[targetIdx].commission = `${commPct}%`;
+                        }
+
+                        const updatedAffilJSON = JSON.stringify(affilList, null, 2);
+                        const affilBase64 = btoa(unescape(encodeURIComponent(updatedAffilJSON)));
+
+                        const putAffilPayload = {
+                            message: `Admin Commission Allocation: Incremented ID ${matchedReferrerPartner.affiliateId} wallet`,
+                            content: affilBase64,
+                            sha: affilPayload.sha,
+                            branch: BRANCH
+                        };
+
+                        await fetch(affilApiUrl, {
+                            method: "PUT",
+                            headers: {
+                                "Authorization": `Bearer ${token}`,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(putAffilPayload)
+                        });
+                    }
+                }
+
+                // Complete pipeline execution
+                alert("Success! Transaction compiled, logged, and synced.");
+                document.getElementById('saleForm').reset();
+                resetReferralState();
+                switchTab('active');
+                await initSalesHub();
+
+            } catch (err) {
+                console.error("Critical wizard failure: ", err);
+                alert(`Transaction compilation error: ${err.message}`);
+            } finally {
+                document.getElementById('processingModal').classList.add('hidden');
+            }
+        };
+
+        // Open details dialog popup
+        window.openDetailsPopup = function(saleId) {
+            const sale = salesList.find(s => s.sale_id === saleId);
+            if (!sale) return;
+
+            selectedActiveSaleObj = sale;
+
+            document.getElementById('popupSaleId').innerText = `ID: ${sale.sale_id}`;
+            document.getElementById('popupBuyerName').innerText = `${sale.buyer.firstName} ${sale.buyer.lastName}`;
+            document.getElementById('popupBuyerContact').innerText = `Email: ${sale.buyer.email} | Phone: +91 ${sale.buyer.phone}`;
+            
+            document.getElementById('popupProjName').innerText = sale.property.title;
+            document.getElementById('popupProjPrice').innerText = `Final Agreed Price: ₹ ${sale.final_price.toLocaleString('en-IN')} (Original: ₹ ${sale.property.price.toLocaleString('en-IN')})`;
+
+            // Configure Referrer Block
+            const refBlock = document.getElementById('popupReferrerBlock');
+            if (sale.referral && sale.referral.refCode !== "none") {
+                refBlock.classList.remove('hidden');
+                document.getElementById('popupReferrerName').innerText = `Affiliate Name: ${sale.referral.referrerName} (ID: ${sale.referral.refCode})`;
+                document.getElementById('popupReferrerEarnings').innerText = `Yield Rate: ${sale.referral.commissionValue}% | Earnings: ₹ ${sale.referral.partnerEarnings.toLocaleString('en-IN')}`;
+            } else {
+                refBlock.classList.add('hidden');
+            }
+
+            // Set current status select value
+            document.getElementById('popupStatusSelect').value = sale.status;
+
+            document.getElementById('detailsPopupModal').classList.remove('hidden');
+        };
+
+        window.closeDetailsPopup = function() {
+            document.getElementById('detailsPopupModal').classList.add('hidden');
+            selectedActiveSaleObj = null;
+        };
+
+        // Transition property publish status to Hidden inside catalog chunks sequentially on GitHub
+        async function hideFinalizedPropertyFromWebsite(projectId) {
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            
+            let foundFileName = null;
+            let targetFileSha = null;
+            let updatedListPayload = [];
+
+            // Scan through landdata sharding files sequentially
+            for (let idx = 0; idx <= 5; idx++) {
+                const targetFile = idx === 0 ? "landdata.json" : `landdata${idx}.json`;
+                const fileUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${targetFile}`;
+
+                try {
+                    const res = await fetch(`${fileUrl}?t=${cacheBuster}`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+
+                    if (res.ok) {
+                        const payload = await res.json();
+                        const rawText = decodeURIComponent(escape(atob(payload.content.replace(/\s/g, ''))));
+                        let chunkList = JSON.parse(rawText);
+
+                        const projectIndex = chunkList.findIndex(p => p.project_id === projectId);
+                        if (projectIndex !== -1) {
+                            // Found target property entry -> Force status state to Hidden [Hide Sold Property]
+                            chunkList[projectIndex].publish_status = "Hidden";
+                            
+                            foundFileName = targetFile;
+                            targetFileSha = payload.sha;
+                            updatedListPayload = chunkList;
+                            break; // Stop scanning once successfully found and processed
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Scan skipped/ended for catalog shard ${targetFile}`, e);
+                }
+            }
+
+            // Commit change back to GitHub
+            if (foundFileName && targetFileSha) {
+                const putUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${foundFileName}`;
+                const stringifiedJSON = JSON.stringify(updatedListPayload, null, 2);
+                const base64Content = btoa(unescape(encodeURIComponent(stringifiedJSON)));
+
+                const putPayload = {
+                    message: `System Ledger: Auto-hiding sold finalized property project ID ${projectId}`,
+                    content: base64Content,
+                    sha: targetFileSha,
+                    branch: BRANCH
+                };
+
+                const putRes = await fetch(putUrl, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(putPayload)
+                });
+
+                return putRes.ok;
+            }
+            return false;
+        }
+
+        // Update status commit [Status Toggle Committer & Bilateral decrement sync]
+        window.commitSaleStatusUpdate = async function() {
+            if (!selectedActiveSaleObj) return;
+            const newStatus = document.getElementById('popupStatusSelect').value;
+            const oldStatus = selectedActiveSaleObj.status;
+
+            document.getElementById('processingModalTitle').innerText = "Updating Transaction Status";
+            document.getElementById('processingModalSubtitle').innerText = `Transitioning state to: ${newStatus}...`;
+            document.getElementById('processingModal').classList.remove('hidden');
+
+            const token = getActiveToken();
+            const cacheBuster = Date.now();
+            const salesApiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${SALES_FILE}`;
+
+            try {
+                // Fetch fresh SHA to avoid conflict
+                const getRes = await fetch(`${salesApiUrl}?t=${cacheBuster}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (getRes.ok) {
+                    const payload = await getRes.json();
+                    const rawText = decodeURIComponent(escape(atob(payload.content.replace(/\s/g, ''))));
+                    let freshList = JSON.parse(rawText);
+
+                    const targetIdx = freshList.findIndex(s => s.sale_id === selectedActiveSaleObj.sale_id);
+                    if (targetIdx !== -1) {
+                        freshList[targetIdx].status = newStatus;
+                    } else {
+                        alert("Error: Transaction record not found.");
+                        document.getElementById('processingModal').classList.add('hidden');
+                        return;
+                    }
+
+                    const updatedJSON = JSON.stringify(freshList, null, 2);
+                    const base64Content = btoa(unescape(encodeURIComponent(updatedJSON)));
+
+                    const putPayload = {
+                        message: `Admin Update: Sale ID ${selectedActiveSaleObj.sale_id} status changed to ${newStatus}`,
+                        content: base64Content,
+                        sha: payload.sha,
+                        branch: BRANCH
+                    };
+
+                    const putRes = await fetch(salesApiUrl, {
+                        method: "PUT",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(putPayload)
+                    });
+
+                    if (putRes.ok) {
+                        // Action 1: If transaction is marked finalized/success, hide listing [Hide Sold Property]
+                        if (newStatus === "Success" || newStatus === "Done Payment") {
+                            document.getElementById('processingModalSubtitle').innerText = "Hiding property listing from public site index...";
+                            await hideFinalizedPropertyFromWebsite(selectedActiveSaleObj.property.project_id);
+                        }
+
+                        // Action 2: If transaction is updated to "Sale Cancelled" from active, decrement ongoing count
+                        if (newStatus === "Sale Cancelled" && selectedActiveSaleObj.referral && oldStatus !== "Sale Cancelled") {
+                            document.getElementById('processingModalSubtitle').innerText = "Decrementing affiliate ongoing ledger count...";
+                            const affilApiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${AFFIL_FILE}`;
+                            const getAffilRes = await fetch(`${affilApiUrl}?t=${cacheBuster}`, {
+                                headers: { "Authorization": `Bearer ${token}` }
+                            });
+
+                            if (getAffilRes.ok) {
+                                const affilPayload = await getAffilRes.json();
+                                const rawAffilText = decodeURIComponent(escape(atob(affilPayload.content.replace(/\s/g, ''))));
+                                let affilList = JSON.parse(rawAffilText);
+
+                                const targetIdx = affilList.findIndex(a => a.affiliateId === selectedActiveSaleObj.referral.refCode);
+                                if (targetIdx !== -1) {
+                                    let currentOngoing = parseInt(affilList[targetIdx].ongoing || 0);
+                                    affilList[targetIdx].ongoing = Math.max(0, currentOngoing - 1);
+                                    
+                                    // Decrement earnings payout
+                                    let curEarningsText = affilList[targetIdx].earnings ? affilList[targetIdx].earnings.replace(/[^0-9.]/g, '') : "0";
+                                    let curEarningsFloat = parseFloat(curEarningsText) || 0;
+                                    let newEarningsFloat = Math.max(0, curEarningsFloat - selectedActiveSaleObj.referral.partnerEarnings);
+
+                                    affilList[targetIdx].earnings = `₹${newEarningsFloat.toLocaleString('en-IN')}`;
+                                }
+
+                                const updatedAffilJSON = JSON.stringify(affilList, null, 2);
+                                const affilBase64 = btoa(unescape(encodeURIComponent(updatedAffilJSON)));
+
+                                const putAffilPayload = {
+                                    message: `Admin System Sync: Decrement ID ${selectedActiveSaleObj.referral.refCode} ongoing due to cancellation`,
+                                    content: affilBase64,
+                                    sha: affilPayload.sha,
+                                    branch: BRANCH
+                                };
+
+                                await fetch(affilApiUrl, {
+                                    method: "PUT",
+                                    headers: {
+                                        "Authorization": `Bearer ${token}`,
+                                        "Content-Type": "application/json"
+                                    },
+                                    body: JSON.stringify(putAffilPayload)
+                                });
+                            }
+                        }
+
+                        alert(`Transaction transitioned to ${newStatus.toUpperCase()} successfully.`);
+                        closeDetailsPopup();
+                        await syncSalesLedger(); // Refresh lists immediately
+                    } else {
+                        alert("GitHub API Error writing status update.");
+                    }
+                }
+            } catch (err) {
+                console.error("Status transition failure: ", err);
+                alert(`Error executing transition: ${err.message}`);
+            } finally {
+                document.getElementById('processingModal').classList.add('hidden');
+            }
+        };
+
+        // Client-Side compilation & download ZIP wrapper [Dynamic ZIP compiler]
+        window.downloadSaleZipTrigger = async function() {
+            if (!selectedActiveSaleObj) return;
+            const sale = selectedActiveSaleObj;
+
+            try {
+                const zip = new JSZip();
+
+                // Format transaction details file
+                const detailsTextContent = `
+==================================================
+PROSIFY SALES HUB - CORE TRANSACTION LEDGER
+==================================================
+Sale ID: ${sale.sale_id}
+Transaction Date: ${new Date(sale.timestamp).toLocaleString()}
+Active Status: ${sale.status}
+
+[BUYER PROFILE]
+First Name: ${sale.buyer.firstName}
+Last Name: ${sale.buyer.lastName}
+Contact Number: +91 ${sale.buyer.phone}
+Email Address: ${sale.buyer.email}
+
+[PROPERTY PORTFOLIO]
+Product Name: ${sale.property.title}
+Listed Price: ₹ ${sale.property.price.toLocaleString('en-IN')}
+RERA Identifier: ${sale.property.rera_id || "N/A"}
+Category Sector: ${sale.property.category || "Residential"}
+Geographic Locality: ${sale.property.location?.locality || ''}, ${sale.property.location?.city || ''}
+
+[FINANCIAL SUMMARY]
+Applied Discount: ₹ ${sale.discount.toLocaleString('en-IN')}
+Final Agreed Valuation: ₹ ${sale.final_price.toLocaleString('en-IN')}
+
+[COMMISSION REFERRAL LOGS]
+Referral Partner Code: ${sale.referral?.refCode || "Direct Client / None"}
+Affiliate Partner: ${sale.referral?.referrerName || "N/A"}
+Allocated Yield Rate: ${sale.referral ? (sale.referral.commissionValue + '%') : "N/A"}
+Partner Payout: ${sale.referral ? ('₹ ' + sale.referral.partnerEarnings.toLocaleString('en-IN')) : "N/A"}
+==================================================
+                `;
+
+                zip.file("details.txt", detailsTextContent);
+
+                // Include Brochure reference files
+                if (sale.property.brochure) {
+                    zip.file("brochure_reference.txt", `Property PDF Brochure URL Path:\n${sale.property.brochure}`);
+                }
+
+                // Include Image catalog manifests
+                if (sale.property.header_image) {
+                    zip.file("property_image_path.txt", `Property Banner URL Path:\n${sale.property.header_image}`);
+                }
+
+                // Compile and stream ZIP Blob
+                zip.generateAsync({ type: "blob" }).then(function(content) {
+                    saveAs(content, `Prosify_Receipt_${sale.buyer.firstName}_${sale.sale_id}.zip`);
+                });
+
+            } catch (err) {
+                console.error("ZIP pipeline failure: ", err);
+                alert(`Unable to compile ZIP package: ${err.message}`);
+            }
+        };
+
+        // Render visual charts and metrics [Interactive Analytics Panel]
+        function renderAnalyticsDashboard() {
+            let totalRevenue = 0;
+            let activePipeline = 0;
+            let lostRevenue = 0;
+            let cancelledCount = 0;
+
+            const revenueByDateMap = {};
+            const statusCountsMap = {
+                "Pending": 0,
+                "Pending Payment": 0,
+                "Need to send brochures": 0,
+                "Done Payment": 0,
+                "Success": 0,
+                "Sale Cancelled": 0
+            };
+
+            salesList.forEach(s => {
+                const price = parseFloat(s.final_price) || 0;
+                const dateKey = new Date(s.timestamp).toLocaleDateString();
+
+                // Increment state counts
+                if (statusCountsMap[s.status] !== undefined) {
+                    statusCountsMap[s.status]++;
+                }
+
+                if (s.status === "Success" || s.status === "Done Payment") {
+                    totalRevenue += price;
+                    revenueByDateMap[dateKey] = (revenueByDateMap[dateKey] || 0) + price;
+                } else if (s.status === "Sale Cancelled") {
+                    lostRevenue += price;
+                    cancelledCount++;
+                } else {
+                    activePipeline += price;
+                }
+            });
+
+            // Set DOM figures
+            document.getElementById('analyticTotalRevenue').innerText = `₹ ${totalRevenue.toLocaleString('en-IN')}`;
+            document.getElementById('analyticActivePipeline').innerText = `₹ ${activePipeline.toLocaleString('en-IN')}`;
+            document.getElementById('analyticLostRevenue').innerText = `₹ ${lostRevenue.toLocaleString('en-IN')}`;
+            document.getElementById('analyticCancellationsCount').innerText = cancelledCount;
+
+            // Chart A: Converted Revenue Timeline (Date-wise)
+            const sortedDates = Object.keys(revenueByDateMap).sort((a, b) => new Date(a) - new Date(b));
+            const revenueTimelineValues = sortedDates.map(d => revenueByDateMap[d]);
+
+            if (revenueChartInstance) revenueChartInstance.destroy();
+            const ctxRev = document.getElementById('revenueTimelineChart').getContext('2d');
+            revenueChartInstance = new Chart(ctxRev, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Converted Revenue (INR)',
+                        data: revenueTimelineValues,
+                        borderColor: '#6750A4',
+                        backgroundColor: 'rgba(103, 80, 164, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) { return '₹ ' + value.toLocaleString(); }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart B: Status Distribution (Doughnut)
+            if (funnelChartInstance) funnelChartInstance.destroy();
+            const ctxFunnel = document.getElementById('statusDistributionChart').getContext('2d');
+            funnelChartInstance = new Chart(ctxFunnel, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCountsMap),
+                    datasets: [{
+                        data: Object.values(statusCountsMap),
+                        backgroundColor: [
+                            '#e2e8f0', // Pending
+                            '#e9d5ff', // Pending Payment
+                            '#fed7aa', // Need to send brochures
+                            '#bbf7d0', // Done Payment
+                            '#86efac', // Success
+                            '#fecaca'  // Sale Cancelled
+                        ],
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false // Strip legend inside panel to keep visual spacing tight
+                        }
+                    }
+                }
+            });
+        }
+
+        // Navigation Tabs controllers
+        window.switchTab = function(tabName) {
+            // Hide all views
+            document.getElementById('viewPane-active').classList.add('hidden');
+            document.getElementById('viewPane-history').classList.add('hidden');
+            document.getElementById('viewPane-analytics').classList.add('hidden');
+            document.getElementById('viewPane-wizard').classList.add('hidden');
+
+            // Reset tab highlights
+            document.getElementById('tabBtn-active').className = "py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase";
+            document.getElementById('tabBtn-history').className = "py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase";
+            document.getElementById('tabBtn-analytics').className = "py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase";
+            document.getElementById('tabBtn-wizard').className = "py-3 px-1 border-b-2 border-transparent text-xs font-bold text-onSurfaceVariant hover:text-primary transition flex items-center gap-1.5 uppercase";
+
+            // Show selected view & highlight
+            document.getElementById(`viewPane-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tabBtn-${tabName}`).className = "py-3 px-1 border-b-2 border-primary text-xs font-bold text-primary flex items-center gap-1.5 uppercase";
+        };
+    </script>
+
+</body>
+</html>
